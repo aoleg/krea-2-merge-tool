@@ -10,3 +10,4 @@ samples/
 # third party clone kept for reference only (its own git repository)
 comfy-model-tools/
 !reference/phase8/*.log
+settings.json

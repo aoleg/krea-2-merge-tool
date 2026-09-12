@@ -29,7 +29,7 @@ from .lora_merge import LoraInput, LoraMergeOptions
 from .methods import ADVANCED, METHODS, METHOD_LABELS, NEEDS_C
 
 ST_FILES = [("safetensors", "*.safetensors"), ("all files", "*.*")]
-SETTINGS_PATH = os.path.join(os.path.expanduser("~"), ".krea2_merge_tool.json")
+SETTINGS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "settings.json")
 
 # Dark palette from the original krea-2-lora-merge-tool v10. Light = the native Windows theme.
 DARK = {"bg": "#12141a", "surface": "#1a1d26", "surface_2": "#232734", "border": "#2e3342",
@@ -239,10 +239,12 @@ class ShapingRow(ttk.LabelFrame):
         self.contrast = tk.DoubleVar(value=0.5)
         self.boost = tk.DoubleVar(value=1.0)
         ttk.Label(self.detail, text="modifier", width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
-        self.cb_mod = ttk.Combobox(self.detail, textvariable=self.modifier, values=MODIFIERS, state="readonly", width=12)
-        self.cb_mod.grid(row=0, column=1, sticky="w", **PAD)
-        self.mod_hint = ttk.Label(self.detail, text="", style="Hint.TLabel")
-        self.mod_hint.grid(row=0, column=2, columnspan=3, sticky="w", padx=6)
+        mline = ttk.Frame(self.detail)
+        mline.grid(row=0, column=1, columnspan=3, sticky="w")
+        self.cb_mod = ttk.Combobox(mline, textvariable=self.modifier, values=MODIFIERS, state="readonly", width=12)
+        self.cb_mod.pack(side="left", **PAD)
+        self.mod_hint = ttk.Label(mline, text="", style="Hint.TLabel")
+        self.mod_hint.pack(side="left", padx=6)
         ttk.Label(self.detail, text="contrast", width=LABEL_W).grid(row=1, column=0, sticky="w", **PAD)
         self.sc_contrast = ttk.Scale(self.detail, from_=0.0, to=1.0, variable=self.contrast, command=lambda _v: self._changed())
         self.sc_contrast.grid(row=1, column=1, columnspan=2, sticky="ew", **PAD)
@@ -1062,10 +1064,15 @@ class MergeApp(tk.Tk):
             st.map("Accent.TButton", background=[("active", C["accent_2"]), ("disabled", C["surface_2"])])
             st.configure("TMenubutton", background=C["surface_2"], foreground=C["fg"], arrowcolor=C["fg"], padding=(8, 4))
             st.configure("TEntry", fieldbackground=C["surface_2"], foreground=C["fg"], insertcolor=C["fg"], bordercolor=C["border"])
+            st.map("TEntry", fieldbackground=[("disabled", C["surface"]), ("readonly", C["surface"]), ("focus", C["surface_2"])],
+                   foreground=[("disabled", C["fg_muted"])], bordercolor=[("focus", C["accent"])])
+            st.configure("TSpinbox", fieldbackground=C["surface_2"], foreground=C["fg"], arrowcolor=C["fg"], bordercolor=C["border"])
             st.configure("TCombobox", fieldbackground=C["surface_2"], foreground=C["fg"], background=C["surface_2"],
                          arrowcolor=C["fg"], bordercolor=C["border"], selectbackground=C["surface_2"], selectforeground=C["fg"])
-            st.map("TCombobox", fieldbackground=[("readonly", C["surface_2"])], foreground=[("readonly", C["fg"])],
-                   selectbackground=[("readonly", C["surface_2"])], selectforeground=[("readonly", C["fg"])])
+            st.map("TCombobox", fieldbackground=[("disabled", C["surface"]), ("readonly", C["surface_2"]), ("!readonly", C["surface_2"])],
+                   foreground=[("disabled", C["fg_muted"]), ("readonly", C["fg"]), ("!readonly", C["fg"])],
+                   selectbackground=[("readonly", C["surface_2"])], selectforeground=[("readonly", C["fg"])],
+                   bordercolor=[("focus", C["accent"])])
             st.configure("TCheckbutton", background=C["bg"], foreground=C["fg"], indicatorbackground=C["surface_2"], indicatorforeground=C["accent"])
             st.map("TCheckbutton", background=[("active", C["bg"])])
             st.configure("TRadiobutton", background=C["bg"], foreground=C["fg"], indicatorbackground=C["surface_2"], indicatorforeground=C["accent"])
@@ -1097,6 +1104,12 @@ class MergeApp(tk.Tk):
 
         def walk(w):
             for ch in w.winfo_children():
+                if isinstance(ch, ttk.Menubutton) and ch["menu"]:
+                    try:
+                        menu = self.nametowidget(ch["menu"])
+                        menu.configure(background=bg, foreground=fg, activebackground=C["accent"], activeforeground=C["accent_fg"])
+                    except (tk.TclError, KeyError):
+                        pass
                 if isinstance(ch, ttk.Combobox):
                     try:
                         pd = self.tk.call("ttk::combobox::PopdownWindow", ch)
