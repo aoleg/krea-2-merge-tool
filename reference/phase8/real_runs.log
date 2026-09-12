@@ -1,0 +1,400 @@
+== convert: official turbo bf16 -> int8 convrot / fp8 scaled, compared with the official quantized files
+      [0/878] blocks.0.attn.qknorm.knorm.scale
+      [220/878] blocks.1.mlp.up.weight_scale
+      [310/878] blocks.13.mlp.down.weight_scale
+      [382/878] blocks.16.mlp.down.weight_scale
+      [454/878] blocks.19.mlp.down.weight_scale
+      [508/878] blocks.20.mlp.up.weight_scale
+      [592/878] blocks.24.attn.wq.weight_scale
+      [664/878] blocks.27.attn.wq.weight_scale
+      [733/878] blocks.5.attn.wo.weight_scale
+      [796/878] blocks.7.mlp.up.weight_scale
+      [841/878] blocks.9.mlp.gate.weight_scale
+   int8_convrot: 54s, verify ok, max read back error 0.0090
+   structure vs official: identical
+   12 layers: identical quantized elements 45.76%, scale rel diff 3.07e-02, dequant error ours 0.954% / official 0.936% (max ours 1.476%)
+      [0/686] blocks.0.attn.qknorm.knorm.scale
+      [221/686] blocks.10.mlp.up.weight_scale
+      [285/686] blocks.14.mlp.up.weight_scale
+      [323/686] blocks.17.attn.wo.weight_scale
+      [363/686] blocks.19.mlp.gate.weight_scale
+      [441/686] blocks.23.mlp.down.weight_scale
+      [525/686] blocks.3.mlp.up.weight_scale
+      [603/686] blocks.8.mlp.gate.weight_scale
+   fp8_scaled: 41s, verify ok, max read back error 0.0266
+   structure vs official: identical
+   12 layers: identical quantized elements 100.00%, scale rel diff 0.00e+00, dequant error ours 2.650% / official 2.650% (max ours 2.662%)
+      [0/430] blocks.0.attn.qknorm.knorm.scale
+      [220/430] blocks.1.mlp.gate.weight
+      [239/430] blocks.12.attn.wk.weight
+      [260/430] blocks.14.mlp.gate.weight
+      [276/430] blocks.16.mlp.gate.weight
+      [286/430] blocks.18.attn.gate.weight
+      [298/430] blocks.19.attn.wv.weight
+      [314/430] blocks.20.attn.wv.weight
+      [325/430] blocks.21.mlp.up.weight
+      [342/430] blocks.24.attn.gate.weight
+      [364/430] blocks.26.mlp.gate.weight
+      [381/430] blocks.3.mlp.up.weight
+      [404/430] blocks.6.mlp.gate.weight
+      [421/430] blocks.8.mlp.up.weight
+   int8 -> bf16 round trip: 73s, error vs original bf16 mean 0.864% max 1.352% over 6 tensors
+   (convert: 175s total)
+
+== extract: official turbo bf16 -> anterosXXX turbo (bf16 fine tune)
+      [0/430] blocks.0.attn.qknorm.knorm.scale
+      [190/430] blocks.10.attn.gate.weight
+      [222/430] blocks.14.attn.gate.weight
+      [252/430] blocks.17.mlp.gate.weight
+      [277/430] blocks.2.mlp.up.weight
+      [302/430] blocks.23.attn.gate.weight
+      [330/430] blocks.26.attn.wv.weight
+      [357/430] blocks.4.mlp.up.weight
+      [382/430] blocks.8.attn.gate.weight
+A: turbo.safetensors (plain BF16:256/F32:174)
+B: anterosXXXKrea2_turbo.safetensors (plain BF16:256/F32:174)
+C: raw.safetensors (plain BF16:256/F32:174)
+group            |B-A| / |A|     |B-C| / |A|
+blocks.attn          0.0125         0.0192
+blocks.mlp           0.0134         0.0196
+blocks.mod_norm      0.0027         0.0039
+projections          0.0161         0.0183
+txtfusion            0.0088         0.0124
+cosine(A, B) over 430 tensors: min 0.99573, median 0.99996, max 1.00000
+tensors only in A: 0, only in B: 0
+      [0/264] first
+      [4/264] tproj.1
+      [7/264] txtmlp.3
+      [9/264] blocks.0.attn.wk
+      [11/264] blocks.0.attn.wq
+      [13/264] blocks.0.mlp.down
+      [15/264] blocks.0.mlp.up
+      [17/264] blocks.1.attn.wk
+      [20/264] blocks.1.attn.wv
+      [23/264] blocks.1.mlp.up
+      [25/264] blocks.10.attn.wk
+      [28/264] blocks.10.attn.wv
+      [31/264] blocks.10.mlp.up
+      [33/264] blocks.11.attn.wk
+      [35/264] blocks.11.attn.wq
+      [36/264] blocks.11.attn.wv
+      [38/264] blocks.11.mlp.gate
+      [40/264] blocks.12.attn.gate
+      [42/264] blocks.12.attn.wo
+      [44/264] blocks.12.attn.wv
+      [46/264] blocks.12.mlp.gate
+      [48/264] blocks.13.attn.gate
+      [49/264] blocks.13.attn.wk
+      [51/264] blocks.13.attn.wq
+      [52/264] blocks.13.attn.wv
+      [54/264] blocks.13.mlp.gate
+      [55/264] blocks.13.mlp.up
+      [56/264] blocks.14.attn.gate
+      [57/264] blocks.14.attn.wk
+      [59/264] blocks.14.attn.wq
+      [60/264] blocks.14.attn.wv
+      [62/264] blocks.14.mlp.gate
+      [63/264] blocks.14.mlp.up
+      [64/264] blocks.15.attn.gate
+      [65/264] blocks.15.attn.wk
+      [67/264] blocks.15.attn.wq
+      [68/264] blocks.15.attn.wv
+      [70/264] blocks.15.mlp.gate
+      [71/264] blocks.15.mlp.up
+      [72/264] blocks.16.attn.gate
+      [73/264] blocks.16.attn.wk
+      [75/264] blocks.16.attn.wq
+      [76/264] blocks.16.attn.wv
+      [78/264] blocks.16.mlp.gate
+      [79/264] blocks.16.mlp.up
+      [80/264] blocks.17.attn.gate
+      [81/264] blocks.17.attn.wk
+      [83/264] blocks.17.attn.wq
+      [84/264] blocks.17.attn.wv
+      [86/264] blocks.17.mlp.gate
+      [87/264] blocks.17.mlp.up
+      [88/264] blocks.18.attn.gate
+      [89/264] blocks.18.attn.wk
+      [91/264] blocks.18.attn.wq
+      [92/264] blocks.18.attn.wv
+      [94/264] blocks.18.mlp.gate
+      [95/264] blocks.18.mlp.up
+      [96/264] blocks.19.attn.gate
+      [98/264] blocks.19.attn.wo
+      [99/264] blocks.19.attn.wq
+      [100/264] blocks.19.attn.wv
+      [102/264] blocks.19.mlp.gate
+      [103/264] blocks.19.mlp.up
+      [104/264] blocks.2.attn.gate
+      [105/264] blocks.2.attn.wk
+      [107/264] blocks.2.attn.wq
+      [108/264] blocks.2.attn.wv
+      [110/264] blocks.2.mlp.gate
+      [111/264] blocks.2.mlp.up
+      [112/264] blocks.20.attn.gate
+      [113/264] blocks.20.attn.wk
+      [115/264] blocks.20.attn.wq
+      [117/264] blocks.20.mlp.down
+      [119/264] blocks.20.mlp.up
+      [121/264] blocks.21.attn.wk
+      [123/264] blocks.21.attn.wq
+      [124/264] blocks.21.attn.wv
+      [127/264] blocks.21.mlp.up
+      [129/264] blocks.22.attn.wk
+      [132/264] blocks.22.attn.wv
+      [135/264] blocks.22.mlp.up
+      [137/264] blocks.23.attn.wk
+      [140/264] blocks.23.attn.wv
+      [143/264] blocks.23.mlp.up
+      [145/264] blocks.24.attn.wk
+      [148/264] blocks.24.attn.wv
+      [151/264] blocks.24.mlp.up
+      [153/264] blocks.25.attn.wk
+      [156/264] blocks.25.attn.wv
+      [158/264] blocks.25.mlp.gate
+      [160/264] blocks.26.attn.gate
+      [162/264] blocks.26.attn.wo
+      [164/264] blocks.26.attn.wv
+      [167/264] blocks.26.mlp.up
+      [169/264] blocks.27.attn.wk
+      [172/264] blocks.27.attn.wv
+      [175/264] blocks.27.mlp.up
+      [177/264] blocks.3.attn.wk
+      [180/264] blocks.3.attn.wv
+      [183/264] blocks.3.mlp.up
+      [185/264] blocks.4.attn.wk
+      [188/264] blocks.4.attn.wv
+      [191/264] blocks.4.mlp.up
+      [193/264] blocks.5.attn.wk
+      [196/264] blocks.5.attn.wv
+      [199/264] blocks.5.mlp.up
+      [201/264] blocks.6.attn.wk
+      [204/264] blocks.6.attn.wv
+      [207/264] blocks.6.mlp.up
+      [209/264] blocks.7.attn.wk
+      [212/264] blocks.7.attn.wv
+      [215/264] blocks.7.mlp.up
+      [217/264] blocks.8.attn.wk
+      [220/264] blocks.8.attn.wv
+      [223/264] blocks.8.mlp.up
+      [225/264] blocks.9.attn.wk
+      [228/264] blocks.9.attn.wv
+      [231/264] blocks.9.mlp.up
+      [237/264] txtfusion.layerwise_blocks.0.mlp.down
+      [252/264] txtfusion.refiner_blocks.0.attn.wv
+[blocks.attn] 140 modules, delta norm 34.64
+   target   per-module rank   weighted rank   driven by
+    90.0%              1905            1189   blocks.15.attn.gate
+    95.0%              2616            1874   blocks.15.attn.gate
+    99.0%              3935            3379   blocks.15.attn.gate
+    99.5%              4357            3894   blocks.15.attn.gate
+[blocks.mlp] 84 modules, delta norm 52.97
+   target   per-module rank   weighted rank   driven by
+    90.0%              2870            2051   blocks.11.mlp.down
+    95.0%              3800            3041   blocks.11.mlp.down
+    99.0%              5233            4794   blocks.11.mlp.down
+    99.5%              5569            5260   blocks.11.mlp.down
+[txtfusion] 33 modules, delta norm 9.86
+   target   per-module rank   weighted rank   driven by
+    90.0%              1006             602   txtfusion.layerwise_blocks.0.mlp.gate
+    95.0%              1441             979   txtfusion.layerwise_blocks.0.mlp.gate
+    99.0%              2136            1797   txtfusion.layerwise_blocks.0.mlp.gate
+    99.5%              2302            2051   txtfusion.layerwise_blocks.0.mlp.gate
+[projections] 7 modules, delta norm 10.05
+   target   per-module rank   weighted rank   driven by
+    90.0%               831              75   txtmlp.3
+    95.0%              1448             249   txtmlp.3
+    99.0%              2956            1227   txtmlp.3
+    99.5%              3518            1819   txtmlp.3
+1 module(s) are smaller than twice the requested rank and clamp:
+   max rank    1  txtfusion.projector
+   rank per group for 95% (weighted): {'projections': 249, 'txtfusion': 979, 'blocks.attn': 1874, 'blocks.mlp': 3041}
+      [0/264] first
+      [32/264] blocks.11.attn.gate
+      [71/264] blocks.15.mlp.up
+      [107/264] blocks.2.attn.wq
+      [143/264] blocks.23.mlp.up
+      [180/264] blocks.3.attn.wv
+      [215/264] blocks.7.mlp.up
+   extracted 264 modules in 34s, energy kept >= 12.7%, per group {'projections': 0.401, 'txtfusion': 0.37, 'blocks.attn': 0.209, 'blocks.mlp': 0.127}
+      [0/430] blocks.0.attn.qknorm.knorm.scale
+      [200/430] blocks.11.attn.wo.weight
+      [236/430] blocks.15.mlp.gate.weight
+      [269/430] blocks.19.mlp.up.weight
+      [285/430] blocks.20.mlp.up.weight
+      [310/430] blocks.24.attn.gate.weight
+      [341/430] blocks.27.mlp.up.weight
+      [359/430] blocks.5.attn.wk.weight
+      [374/430] blocks.7.attn.gate.weight
+      [391/430] blocks.9.attn.wk.weight
+   baked back: remaining delta error vs the fine tune, mean 80.2% over 9 weights (100% = nothing recovered)
+== extract from a quantized fine tune (cyberrealistic int8, prefixed keys) with the noise floor
+      [0/224] blocks.0.attn.gate
+      [3/224] blocks.0.attn.wq
+      [6/224] blocks.0.mlp.gate
+      [8/224] blocks.1.attn.gate
+      [11/224] blocks.1.attn.wq
+      [14/224] blocks.1.mlp.gate
+      [16/224] blocks.10.attn.gate
+      [19/224] blocks.10.attn.wq
+      [22/224] blocks.10.mlp.gate
+      [24/224] blocks.11.attn.gate
+      [27/224] blocks.11.attn.wq
+      [30/224] blocks.11.mlp.gate
+      [32/224] blocks.12.attn.gate
+      [35/224] blocks.12.attn.wq
+      [38/224] blocks.12.mlp.gate
+      [40/224] blocks.13.attn.gate
+      [43/224] blocks.13.attn.wq
+      [46/224] blocks.13.mlp.gate
+      [48/224] blocks.14.attn.gate
+      [51/224] blocks.14.attn.wq
+      [54/224] blocks.14.mlp.gate
+      [56/224] blocks.15.attn.gate
+      [59/224] blocks.15.attn.wq
+      [62/224] blocks.15.mlp.gate
+      [64/224] blocks.16.attn.gate
+      [67/224] blocks.16.attn.wq
+      [70/224] blocks.16.mlp.gate
+      [72/224] blocks.17.attn.gate
+      [75/224] blocks.17.attn.wq
+      [78/224] blocks.17.mlp.gate
+      [80/224] blocks.18.attn.gate
+      [83/224] blocks.18.attn.wq
+      [86/224] blocks.18.mlp.gate
+      [88/224] blocks.19.attn.gate
+      [91/224] blocks.19.attn.wq
+      [94/224] blocks.19.mlp.gate
+      [96/224] blocks.2.attn.gate
+      [99/224] blocks.2.attn.wq
+      [102/224] blocks.2.mlp.gate
+      [104/224] blocks.20.attn.gate
+      [107/224] blocks.20.attn.wq
+      [110/224] blocks.20.mlp.gate
+      [112/224] blocks.21.attn.gate
+      [115/224] blocks.21.attn.wq
+      [118/224] blocks.21.mlp.gate
+      [120/224] blocks.22.attn.gate
+      [123/224] blocks.22.attn.wq
+      [126/224] blocks.22.mlp.gate
+      [128/224] blocks.23.attn.gate
+      [131/224] blocks.23.attn.wq
+      [134/224] blocks.23.mlp.gate
+      [136/224] blocks.24.attn.gate
+      [139/224] blocks.24.attn.wq
+      [142/224] blocks.24.mlp.gate
+      [144/224] blocks.25.attn.gate
+      [147/224] blocks.25.attn.wq
+      [150/224] blocks.25.mlp.gate
+      [152/224] blocks.26.attn.gate
+      [155/224] blocks.26.attn.wq
+      [158/224] blocks.26.mlp.gate
+      [160/224] blocks.27.attn.gate
+      [163/224] blocks.27.attn.wq
+      [166/224] blocks.27.mlp.gate
+      [168/224] blocks.3.attn.gate
+      [171/224] blocks.3.attn.wq
+      [174/224] blocks.3.mlp.gate
+      [176/224] blocks.4.attn.gate
+      [179/224] blocks.4.attn.wq
+      [182/224] blocks.4.mlp.gate
+      [184/224] blocks.5.attn.gate
+      [187/224] blocks.5.attn.wq
+      [190/224] blocks.5.mlp.gate
+      [192/224] blocks.6.attn.gate
+      [195/224] blocks.6.attn.wq
+      [198/224] blocks.6.mlp.gate
+      [200/224] blocks.7.attn.gate
+      [203/224] blocks.7.attn.wq
+      [206/224] blocks.7.mlp.gate
+      [208/224] blocks.8.attn.gate
+      [211/224] blocks.8.attn.wq
+      [214/224] blocks.8.mlp.gate
+      [216/224] blocks.9.attn.gate
+      [219/224] blocks.9.attn.wq
+      [222/224] blocks.9.mlp.gate
+[blocks.attn] 140 modules, delta norm 39.35, noise 39.0% of energy, signal rank <= 3716
+   target   per-module rank   weighted rank   driven by
+    90.0%              2957            2474   blocks.13.attn.gate
+    95.0%              3598            3183   blocks.13.attn.gate
+    99.0%              4645            4372   blocks.13.attn.gate
+    99.5%              4952            4729   blocks.13.attn.gate
+[blocks.mlp] 84 modules, delta norm 58.15, noise 44.7% of energy, signal rank <= 4558
+   target   per-module rank   weighted rank   driven by
+    90.0%              4249            3878   blocks.22.mlp.up
+    95.0%              4951            4661   blocks.22.mlp.up
+    99.0%              5801            5674   blocks.22.mlp.up
+    99.5%              5956            5878   blocks.22.mlp.up
+quantized input: the noise floor is drawn from the storage format's expected error
+   (extract: 1496s total)
+
+== real LoRA merges
+      [0/256] blocks.0.attn.gate
+   3 style LoRAs (rank 16, comfy naming) averaged exactly: 256 modules, rank 48, 0.6s
+   output parses as: comfy, 256 modules {'lora': 256}, rank [48], applied scale [1.0]
+      [0/256] blocks.0.attn.gate
+   Audrey v1 + v3 (OneTrainer diffusers naming), analysis of the rank 64 concatenation:
+[blocks.attn] 140 modules, delta norm 99.68
+   target   per-module rank   weighted rank   driven by
+    90.0%                15               5   blocks.23.attn.wk
+    95.0%                21               8   blocks.23.attn.wk
+    99.0%                44              20   blocks.23.attn.wk
+    99.5%                52              29   blocks.23.attn.wk
+[blocks.mlp] 84 modules, delta norm 180.3
+   target   per-module rank   weighted rank   driven by
+    90.0%                22               6   blocks.26.mlp.up
+    95.0%                32              10   blocks.26.mlp.up
+    99.0%                51              26   blocks.26.mlp.up
+    99.5%                56              35   blocks.26.mlp.up
+[txtfusion] 32 modules, delta norm 29.24
+   target   per-module rank   weighted rank   driven by
+    90.0%                 9               3   txtfusion.refiner_blocks.1.attn.wk
+    95.0%                15               5   txtfusion.refiner_blocks.1.attn.wk
+    99.0%                40              17   txtfusion.refiner_blocks.1.attn.wk
+    99.5%                49              28   txtfusion.refiner_blocks.1.mlp.gate
+      [0/256] blocks.0.attn.gate
+   merged at rank 32: energy kept >= 95.13%, 1.0s; output uses comfy naming
+   output parses as: comfy, 256 modules {'lora': 256}, rank [32], applied scale [1.0]
+      [0/264] blocks.0.attn.gate
+   kohya LoRA reshaped (STYLE suppress) single input: 264 modules, rank 32, 0.4s
+   (loras: 3s total)
+
+== bake: character LoRA (STYLE + Suppress 0.5) into the official turbo, int8 convrot output
+      [0/878] blocks.0.attn.qknorm.knorm.scale
+      [324/878] blocks.12.mlp.up.weight_scale
+      [462/878] blocks.18.mlp.down.weight_scale
+      [597/878] blocks.23.attn.wo.weight_scale
+      [702/878] blocks.27.mlp.down.weight_scale
+      [756/878] blocks.4.mlp.up.weight_scale
+   878 tensors in 33s, verify ok, max read back error 0.0069
+   structure vs official int8: identical
+   recipe in metadata: ckpt_merge, 1 LoRA(s)
+   (bake: 34s total)
+
+== merge: anterosXXX turbo (bf16 fine tune) onto official turbo with the raw model as reference, STYLE isolate, output as LoRA
+      [0/264] first
+      [30/264] blocks.10.mlp.gate
+      [63/264] blocks.14.mlp.up
+      [90/264] blocks.18.attn.wo
+      [118/264] blocks.20.mlp.gate
+      [144/264] blocks.24.attn.gate
+      [174/264] blocks.27.mlp.gate
+      [200/264] blocks.6.attn.gate
+      [231/264] blocks.9.mlp.up
+   style only LoRA: 264 modules, energy kept >= 0.0%, 43s
+== merge: cosine A of two int8 fine tunes (same precision), bf16 output
+      [0/430] similarity pass: blocks.0.attn.qknorm.knorm.scale
+      [253/430] similarity pass: blocks.13.mlp.up.weight
+      [321/430] similarity pass: blocks.21.attn.wq.weight
+      [389/430] similarity pass: blocks.4.mlp.up.weight
+      [200/430] txtfusion.refiner_blocks.1.mlp.gate.weight
+      [245/430] blocks.12.mlp.up.weight
+      [268/430] blocks.15.mlp.gate.weight
+      [316/430] blocks.20.mlp.gate.weight
+      [358/430] blocks.26.attn.gate.weight
+      [389/430] blocks.4.mlp.up.weight
+      [417/430] blocks.8.attn.wq.weight
+   430 tensors in 38s, verify ok
+   (merge: 101s total)
+
+exit 0

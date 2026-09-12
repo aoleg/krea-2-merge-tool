@@ -1,0 +1,12 @@
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+tests/_fixtures/
+samples/
+*.log
+*.part
+*.safetensors
+# third party clone kept for reference only (its own git repository)
+comfy-model-tools/
+!reference/phase8/*.log

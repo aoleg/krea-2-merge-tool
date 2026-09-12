@@ -1,0 +1,21 @@
+== bake: character LoRA (STYLE + Suppress 0.5) into the official turbo, int8 convrot output
+      [0/878] blocks.0.attn.qknorm.knorm.scale
+      [246/878] blocks.1.mlp.down.weight_scale
+      [303/878] blocks.12.attn.gate.weight_scale
+      [345/878] blocks.13.mlp.gate.weight_scale
+      [414/878] blocks.16.mlp.down.weight_scale
+      [456/878] blocks.18.attn.wq.weight_scale
+      [516/878] blocks.2.mlp.up.weight_scale
+      [576/878] blocks.22.attn.wq.weight_scale
+      [636/878] blocks.24.mlp.up.weight_scale
+      [681/878] blocks.26.mlp.gate.weight_scale
+      [726/878] blocks.3.mlp.down.weight_scale
+      [756/878] blocks.4.mlp.up.weight_scale
+      [825/878] blocks.7.mlp.gate.weight_scale
+   878 tensors in 68s, verify ok, max read back error 0.0068
+   structure vs official int8: identical
+   recipe in metadata: ckpt_merge, 1 LoRA(s)
+   kept T:\claude\github2\lora\krea2LoraMergeTool_v10\samples\scratchpad\turbo_joanna_int8.safetensors for a load test in ComfyUI / Forge Neo
+   (bake: 68s total)
+
+exit 0

@@ -1,0 +1,5 @@
+# torch and torchvision are installed by install.bat from the PyTorch CUDA index,
+# not from PyPI. Everything else comes from PyPI.
+safetensors>=0.4.5
+numpy>=1.26
+pytest>=8.0

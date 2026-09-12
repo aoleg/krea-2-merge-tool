@@ -1,0 +1,149 @@
+== extract: official turbo bf16 -> anterosXXX turbo (bf16 fine tune)
+      [0/430] blocks.0.attn.qknorm.knorm.scale
+      [182/430] blocks.1.attn.gate.weight
+      [206/430] blocks.12.attn.gate.weight
+      [230/430] blocks.15.attn.gate.weight
+      [254/430] blocks.18.attn.gate.weight
+      [278/430] blocks.20.attn.gate.weight
+      [301/430] blocks.22.mlp.up.weight
+      [324/430] blocks.25.mlp.gate.weight
+      [346/430] blocks.3.attn.wv.weight
+      [366/430] blocks.6.attn.gate.weight
+      [390/430] blocks.9.attn.gate.weight
+A: turbo.safetensors (plain BF16:256/F32:174)
+B: anterosXXXKrea2_turbo.safetensors (plain BF16:256/F32:174)
+C: raw.safetensors (plain BF16:256/F32:174)
+group            |B-A| / |A|     |B-C| / |A|
+blocks.attn          0.0125         0.0192
+blocks.mlp           0.0134         0.0196
+blocks.mod_norm      0.0027         0.0039
+projections          0.0161         0.0183
+txtfusion            0.0088         0.0124
+cosine(A, B) over 430 tensors: min 0.99573, median 0.99996, max 1.00000
+tensors only in A: 0, only in B: 0
+      [0/264] first
+      [15/264] blocks.0.mlp.up
+      [31/264] blocks.10.mlp.up
+      [46/264] blocks.12.mlp.gate
+      [60/264] blocks.14.attn.wv
+      [75/264] blocks.16.attn.wq
+      [89/264] blocks.18.attn.wk
+      [104/264] blocks.2.attn.gate
+      [119/264] blocks.20.mlp.up
+      [134/264] blocks.22.mlp.gate
+      [148/264] blocks.24.attn.wv
+      [163/264] blocks.26.attn.wq
+      [177/264] blocks.3.attn.wk
+      [192/264] blocks.5.attn.gate
+      [207/264] blocks.6.mlp.up
+      [222/264] blocks.8.mlp.gate
+      [245/264] txtfusion.layerwise_blocks.1.mlp.down
+[blocks.attn] 140 modules, delta norm 34.63
+   target   per-module rank   weighted rank   driven by
+    90.0%              1905            1188   blocks.15.attn.gate
+    95.0%              2615            1874   blocks.15.attn.gate
+    99.0%              3935            3378   blocks.15.attn.gate
+    99.5%              4356            3893   blocks.15.attn.gate
+[blocks.mlp] 84 modules, delta norm 52.96
+   target   per-module rank   weighted rank   driven by
+    90.0%              2868            2049   blocks.11.mlp.down
+    95.0%              3799            3039   blocks.11.mlp.down
+    99.0%              5232            4792   blocks.11.mlp.down
+    99.5%              5569            5259   blocks.11.mlp.down
+[txtfusion] 33 modules, delta norm 9.858
+   target   per-module rank   weighted rank   driven by
+    90.0%              1005             602   txtfusion.layerwise_blocks.0.mlp.gate
+    95.0%              1440             979   txtfusion.layerwise_blocks.0.mlp.gate
+    99.0%              2135            1797   txtfusion.layerwise_blocks.0.mlp.gate
+    99.5%              2301            2051   txtfusion.layerwise_blocks.0.mlp.gate
+[projections] 7 modules, delta norm 10.05
+   target   per-module rank   weighted rank   driven by
+    90.0%               831              75   txtmlp.3
+    95.0%              1447             248   txtmlp.3
+    99.0%              2955            1221   txtmlp.3
+    99.5%              3517            1809   txtmlp.3
+1 module(s) are smaller than twice the requested rank and clamp:
+   max rank    1  txtfusion.projector
+   rank per group for 95% (weighted): {'projections': 248, 'txtfusion': 979, 'blocks.attn': 1874, 'blocks.mlp': 3039}
+      [0/264] first
+      [28/264] blocks.10.attn.wv
+      [59/264] blocks.14.attn.wq
+      [92/264] blocks.18.attn.wv
+      [121/264] blocks.21.attn.wk
+      [152/264] blocks.25.attn.gate
+      [184/264] blocks.4.attn.gate
+      [217/264] blocks.8.attn.wk
+   extracted 264 modules in 39s, energy kept >= 12.7%, per group {'projections': 0.401, 'txtfusion': 0.37, 'blocks.attn': 0.209, 'blocks.mlp': 0.127}
+      [0/430] blocks.0.attn.qknorm.knorm.scale
+      [190/430] blocks.10.attn.gate.weight
+      [214/430] blocks.13.attn.gate.weight
+      [238/430] blocks.16.attn.gate.weight
+      [263/430] blocks.19.attn.wk.weight
+      [278/430] blocks.20.attn.gate.weight
+      [308/430] blocks.23.mlp.gate.weight
+      [337/430] blocks.27.attn.wq.weight
+      [357/430] blocks.4.mlp.up.weight
+      [374/430] blocks.7.attn.gate.weight
+      [396/430] blocks.9.mlp.gate.weight
+   baked back: remaining delta error vs the fine tune, mean 80.2% over 9 weights (100% = nothing recovered)
+== extract from a quantized fine tune (cyberrealistic int8, prefixed keys) with the noise floor
+      [0/224] blocks.0.attn.gate
+      [19/224] blocks.10.attn.wq
+      [38/224] blocks.12.mlp.gate
+      [55/224] blocks.14.mlp.up
+      [71/224] blocks.16.mlp.up
+      [88/224] blocks.19.attn.gate
+      [104/224] blocks.20.attn.gate
+      [121/224] blocks.22.attn.wk
+      [138/224] blocks.24.attn.wo
+      [153/224] blocks.26.attn.wk
+      [169/224] blocks.3.attn.wk
+      [185/224] blocks.5.attn.wk
+      [200/224] blocks.7.attn.gate
+      [216/224] blocks.9.attn.gate
+[blocks.attn] 140 modules, delta norm 39.33, noise 39.0% of energy, signal rank <= 3715
+   target   per-module rank   weighted rank   driven by
+    90.0%              2956            2473   blocks.13.attn.gate
+    95.0%              3598            3183   blocks.13.attn.gate
+    99.0%              4644            4372   blocks.13.attn.gate
+    99.5%              4952            4728   blocks.13.attn.gate
+[blocks.mlp] 84 modules, delta norm 58.12, noise 44.7% of energy, signal rank <= 4555
+   target   per-module rank   weighted rank   driven by
+    90.0%              4248            3877   blocks.22.mlp.up
+    95.0%              4950            4660   blocks.22.mlp.up
+    99.0%              5800            5674   blocks.22.mlp.up
+    99.5%              5956            5877   blocks.22.mlp.up
+quantized input: the noise floor is drawn from the storage format's expected error
+   (extract: 319s total)
+
+== merge: anterosXXX turbo (bf16 fine tune) onto official turbo with the raw model as reference, STYLE isolate, output as LoRA
+      [0/264] first
+      [31/264] blocks.10.mlp.up
+      [65/264] blocks.15.attn.wk
+      [94/264] blocks.18.mlp.gate
+      [120/264] blocks.21.attn.gate
+      [148/264] blocks.24.attn.wv
+      [174/264] blocks.27.mlp.gate
+      [200/264] blocks.6.attn.gate
+      [230/264] blocks.9.mlp.gate
+   style only LoRA: 264 modules, energy kept >= 15.0%, 43s
+== merge: cosine A of two int8 fine tunes (same precision), bf16 output
+      [0/430] similarity pass: blocks.0.attn.qknorm.knorm.scale
+      [234/430] similarity pass: blocks.11.attn.wv.weight
+      [284/430] similarity pass: blocks.17.mlp.gate.weight
+      [343/430] similarity pass: blocks.24.attn.wk.weight
+      [404/430] similarity pass: blocks.6.mlp.gate.weight
+      [207/430] blocks.0.attn.wk.weight
+      [244/430] blocks.12.mlp.gate.weight
+      [254/430] blocks.14.attn.gate.weight
+      [269/430] blocks.15.mlp.up.weight
+      [298/430] blocks.19.attn.wv.weight
+      [325/430] blocks.21.mlp.up.weight
+      [341/430] blocks.23.mlp.up.weight
+      [360/430] blocks.26.attn.wo.weight
+      [389/430] blocks.4.mlp.up.weight
+      [420/430] blocks.8.mlp.gate.weight
+   430 tensors in 53s, verify ok
+   (merge: 121s total)
+
+exit 0
