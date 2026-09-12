@@ -29,6 +29,34 @@ from .lora_merge import LoraInput, LoraMergeOptions
 from .methods import ADVANCED, METHODS, METHOD_LABELS, NEEDS_C
 
 ST_FILES = [("safetensors", "*.safetensors"), ("all files", "*.*")]
+SETTINGS_PATH = os.path.join(os.path.expanduser("~"), ".krea2_merge_tool.json")
+
+# Dark palette from the original krea-2-lora-merge-tool v10. Light = the native Windows theme.
+DARK = {"bg": "#12141a", "surface": "#1a1d26", "surface_2": "#232734", "border": "#2e3342",
+        "fg": "#e6e9f0", "fg_muted": "#8b93a7", "accent": "#6c8cff", "accent_2": "#8aa2ff",
+        "accent_fg": "#0d0f14", "ok": "#4ade80", "log_bg": "#0e1015", "trough": "#232734",
+        "canvas": "#232734", "bar_up": "#8aa2ff", "bar_down": "#8b93a7", "bar_flat": "#4ade80", "link": "#8aa2ff"}
+LIGHT = {"bg": "#f0f0f0", "surface": "#f0f0f0", "surface_2": "#ffffff", "border": "#c8c8c8",
+         "fg": "#000000", "fg_muted": "#5f6b7a", "accent": "#1f4e9c", "accent_2": "#3b62e8",
+         "accent_fg": "#ffffff", "ok": "#3a9d5c", "log_bg": "#ffffff", "trough": "#e2e7ef",
+         "canvas": "#ffffff", "bar_up": "#2f6fd6", "bar_down": "#9aa4b1", "bar_flat": "#3a9d5c", "link": "#1f4e9c"}
+THEMES = {"dark": DARK, "light": LIGHT}
+
+
+def load_settings() -> dict:
+    try:
+        with open(SETTINGS_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def save_settings(d: dict) -> None:
+    try:
+        with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
+            json.dump(d, f)
+    except OSError:
+        pass
 JSON_FILES = [("recipe", "*.json"), ("all files", "*.*")]
 STEP = 0.05
 PAD = {"padx": 6, "pady": 3}          # grid cell padding
@@ -227,7 +255,9 @@ class ShapingRow(ttk.LabelFrame):
         self.lbl_boost = ttk.Label(self.detail, text="1.00", width=5)
         self.lbl_boost.grid(row=2, column=3, sticky="w")
         ttk.Label(self.detail, text="per block", width=LABEL_W).grid(row=3, column=0, sticky="nw", **PAD)
-        self.curve = tk.Canvas(self.detail, height=40, width=280, highlightthickness=1, highlightbackground="#c8c8c8", bg="#ffffff")
+        self.curve = tk.Canvas(self.detail, height=40, width=280, highlightthickness=1,
+                               highlightbackground=app.C["border"], bg=app.C["canvas"])
+        app.themed.append(self)
         self.curve.grid(row=3, column=1, columnspan=2, sticky="ew", **PAD)
         self.info = ttk.Label(self.detail, text="", style="Hint.TLabel")
         self.info.grid(row=3, column=3, sticky="w")
@@ -299,12 +329,17 @@ class ShapingRow(ttk.LabelFrame):
         w = max(int(c.winfo_width()), 280)
         h = 40
         bw = w / len(f)
-        c.create_line(0, h - h / 3, w, h - h / 3, fill="#d0d0d0")
+        C = self.app.C
+        c.create_line(0, h - h / 3, w, h - h / 3, fill=C["border"])
         for i, v in enumerate(f):
             bh = min(v, 2.0) / 2.0 * (h - 4)
-            col = "#2f6fd6" if v > 1.0 + 1e-9 else ("#9aa4b1" if v < 1.0 - 1e-9 else "#3a9d5c")
+            col = C["bar_up"] if v > 1.0 + 1e-9 else (C["bar_down"] if v < 1.0 - 1e-9 else C["bar_flat"])
             c.create_rectangle(i * bw + 1, h - bh, (i + 1) * bw - 1, h, fill=col, outline="")
         self.info.configure(text=f"min {min(f):.2f}\nmax {max(f):.2f}")
+
+    def apply_theme(self, C: dict):
+        self.curve.configure(bg=C["canvas"], highlightbackground=C["border"])
+        self.draw_curve()
 
     # ---- conversions
     def to_lora_input(self) -> LoraInput | None:
@@ -950,7 +985,7 @@ class CkptTab(ttk.Frame):
 
 # ============================================================================== app
 class MergeApp(tk.Tk):
-    def __init__(self, theme: str = "native"):
+    def __init__(self, theme: str | None = None):
         _enable_dpi_awareness()
         super().__init__()
         self.title(f"Krea 2 Merge Tool {__version__}")
@@ -958,16 +993,17 @@ class MergeApp(tk.Tk):
         self.cancel_event = threading.Event()
         self.worker: threading.Thread | None = None
         self._start = None
+        self.themed: list = []                      # widgets with an apply_theme(C) method
+        self.settings = load_settings()
+        if theme in (None, "native"):
+            theme = self.settings.get("theme", "light")
+        self.theme_name = theme if theme in THEMES else "light"
+        self.C = THEMES[self.theme_name]
         self._setup_scaling_and_fonts()
         self.style = ttk.Style(self)
-        for name in ("vista", "winnative", "clam"):
-            try:
-                self.style.theme_use(name)
-                break
-            except tk.TclError:
-                continue
-        self._styles()
+        self._native_theme = next((n for n in ("vista", "winnative", "clam") if n in self.style.theme_names()), "default")
         self._build()
+        self.apply_theme(self.theme_name)
         self.update_idletasks()
         w, h = self.winfo_reqwidth(), self.winfo_reqheight()
         self.minsize(min(w, self.winfo_screenwidth() - 80), min(h, self.winfo_screenheight() - 120))
@@ -990,18 +1026,110 @@ class MergeApp(tk.Tk):
         except tk.TclError:
             pass
 
-    def _styles(self):
+    # ---- theme
+    def apply_theme(self, name: str):
+        """Light = native Windows theme. Dark = the clam engine with the original tool's palette."""
+        self.theme_name = name if name in THEMES else "light"
+        C = self.C = THEMES[self.theme_name]
         st = self.style
-        st.configure("Hint.TLabel", foreground="#5f6b7a")
-        st.configure("Link.TLabel", foreground="#1f4e9c")
-        st.configure("Accent.TButton", font=(tkfont.nametofont("TkDefaultFont").actual()["family"], 10, "bold"))
-        st.configure("TLabelframe.Label", foreground="#1f4e9c")
-        st.configure("TNotebook.Tab", padding=(14, 6))
-        st.configure("Toolbutton", padding=(4, 2))
+        family = tkfont.nametofont("TkDefaultFont").actual()["family"]
+        bold = (family, 10, "bold")
+        if self.theme_name == "light":
+            st.theme_use(self._native_theme)          # ttk keeps style settings per theme: nothing to undo
+            self.configure(bg=C["bg"])
+            st.configure("TLabelframe.Label", foreground=C["accent"])
+            st.configure("Hint.TLabel", foreground=C["fg_muted"])
+            st.configure("Link.TLabel", foreground=C["link"])
+            st.configure("Accent.TButton", font=bold)
+            st.configure("TNotebook.Tab", padding=(14, 6))
+            self.option_add("*TCombobox*Listbox.background", "#ffffff")
+            self.option_add("*TCombobox*Listbox.foreground", "#000000")
+        else:
+            st.theme_use("clam")
+            self.configure(bg=C["bg"])
+            st.configure(".", background=C["bg"], foreground=C["fg"], fieldbackground=C["surface_2"],
+                         bordercolor=C["border"], lightcolor=C["surface"], darkcolor=C["bg"], troughcolor=C["trough"],
+                         focuscolor=C["accent"], selectbackground=C["accent"], selectforeground=C["accent_fg"])
+            st.configure("TFrame", background=C["bg"])
+            st.configure("TLabel", background=C["bg"], foreground=C["fg"])
+            st.configure("Hint.TLabel", background=C["bg"], foreground=C["fg_muted"])
+            st.configure("Link.TLabel", background=C["bg"], foreground=C["link"])
+            st.configure("TLabelframe", background=C["bg"], bordercolor=C["border"])
+            st.configure("TLabelframe.Label", background=C["bg"], foreground=C["accent"])
+            st.configure("TButton", background=C["surface_2"], foreground=C["fg"], bordercolor=C["border"], padding=(10, 4))
+            st.map("TButton", background=[("active", C["border"]), ("disabled", C["surface"])], foreground=[("disabled", C["fg_muted"])])
+            st.configure("Accent.TButton", background=C["accent"], foreground=C["accent_fg"], font=bold, bordercolor=C["accent"])
+            st.map("Accent.TButton", background=[("active", C["accent_2"]), ("disabled", C["surface_2"])])
+            st.configure("TMenubutton", background=C["surface_2"], foreground=C["fg"], arrowcolor=C["fg"], padding=(8, 4))
+            st.configure("TEntry", fieldbackground=C["surface_2"], foreground=C["fg"], insertcolor=C["fg"], bordercolor=C["border"])
+            st.configure("TCombobox", fieldbackground=C["surface_2"], foreground=C["fg"], background=C["surface_2"],
+                         arrowcolor=C["fg"], bordercolor=C["border"], selectbackground=C["surface_2"], selectforeground=C["fg"])
+            st.map("TCombobox", fieldbackground=[("readonly", C["surface_2"])], foreground=[("readonly", C["fg"])],
+                   selectbackground=[("readonly", C["surface_2"])], selectforeground=[("readonly", C["fg"])])
+            st.configure("TCheckbutton", background=C["bg"], foreground=C["fg"], indicatorbackground=C["surface_2"], indicatorforeground=C["accent"])
+            st.map("TCheckbutton", background=[("active", C["bg"])])
+            st.configure("TRadiobutton", background=C["bg"], foreground=C["fg"], indicatorbackground=C["surface_2"], indicatorforeground=C["accent"])
+            st.map("TRadiobutton", background=[("active", C["bg"])])
+            st.configure("TScale", background=C["bg"], troughcolor=C["trough"], bordercolor=C["border"], lightcolor=C["accent"], darkcolor=C["accent"])
+            st.configure("Horizontal.TProgressbar", background=C["accent"], troughcolor=C["trough"], bordercolor=C["border"])
+            st.configure("TNotebook", background=C["bg"], bordercolor=C["border"], tabmargins=(4, 4, 0, 0))
+            st.configure("TNotebook.Tab", background=C["surface_2"], foreground=C["fg_muted"], padding=(14, 6), bordercolor=C["border"])
+            st.map("TNotebook.Tab", background=[("selected", C["surface"])], foreground=[("selected", C["fg"])])
+            st.configure("TScrollbar", background=C["surface_2"], troughcolor=C["bg"], bordercolor=C["border"], arrowcolor=C["fg"])
+            self.option_add("*TCombobox*Listbox.background", C["surface_2"])
+            self.option_add("*TCombobox*Listbox.foreground", C["fg"])
+            self.option_add("*TCombobox*Listbox.selectBackground", C["accent"])
+        self.txt.configure(bg=C["log_bg"], fg=C["fg"], insertbackground=C["fg"])
+        self._recolor_popdowns(C)
+        for w in list(self.themed):
+            try:
+                w.apply_theme(C)
+            except tk.TclError:
+                self.themed.remove(w)
+        self.btn_theme.configure(text="Dark theme" if self.theme_name == "light" else "Light theme")
+        self.settings["theme"] = self.theme_name
+        save_settings(self.settings)
+
+    def _recolor_popdowns(self, C: dict):
+        """Combobox drop down lists are plain Tk listboxes created on first use; recolor the existing ones."""
+        bg = C["surface_2"] if self.theme_name == "dark" else "#ffffff"
+        fg = C["fg"] if self.theme_name == "dark" else "#000000"
+
+        def walk(w):
+            for ch in w.winfo_children():
+                if isinstance(ch, ttk.Combobox):
+                    try:
+                        pd = self.tk.call("ttk::combobox::PopdownWindow", ch)
+                        self.tk.call(f"{pd}.f.l", "configure", "-background", bg, "-foreground", fg,
+                                     "-selectbackground", C["accent"], "-selectforeground", C["accent_fg"])
+                    except tk.TclError:
+                        pass
+                walk(ch)
+        walk(self)
+
+    def toggle_theme(self):
+        self.apply_theme("dark" if self.theme_name == "light" else "light")
+
+    @staticmethod
+    def _device_text() -> str:
+        try:
+            import torch
+            if torch.cuda.is_available():
+                return "CUDA  \u00b7  " + torch.cuda.get_device_name(0)
+            return "CPU only (no CUDA)"
+        except Exception:  # noqa: BLE001
+            return ""
 
     def _build(self):
+        self.header = ttk.Frame(self, padding=(10, 8, 10, 0))
+        self.header.pack(fill="x")
+        ttk.Label(self.header, text="Krea 2 Merge Tool",
+                  font=(tkfont.nametofont("TkDefaultFont").actual()["family"], 13, "bold")).pack(side="left")
+        self.btn_theme = ttk.Button(self.header, text="Dark theme", command=self.toggle_theme)
+        self.btn_theme.pack(side="right")
+        ttk.Label(self.header, text=self._device_text(), style="Hint.TLabel").pack(side="right", padx=12)
         self.nb = ttk.Notebook(self)
-        self.nb.pack(fill="both", expand=True, padx=10, pady=(10, 4))
+        self.nb.pack(fill="both", expand=True, padx=10, pady=(8, 4))
         self.tab_lora = LoraMergeTab(self.nb, self)
         self.tab_extract = ExtractTab(self.nb, self)
         self.tab_ckpt = CkptTab(self.nb, self)
@@ -1141,7 +1269,7 @@ class MergeApp(tk.Tk):
         self.btn_cancel.configure(state="disabled")
 
 
-def run_gui(theme: str = "native") -> int:
+def run_gui(theme: str | None = None) -> int:
     app = MergeApp(theme)
     app.mainloop()
     return 0

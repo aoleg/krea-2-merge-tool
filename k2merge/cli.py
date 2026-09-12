@@ -62,7 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="krea2_merge_tool", description="Krea 2 merge tool: LoRA merge, analysis, extraction, checkpoint merge and conversion")
     ap.add_argument("--version", action="version", version=__version__)
     ap.add_argument("--gui", action="store_true", help="start the GUI (default when no command is given)")
-    ap.add_argument("--theme", default="native", choices=["native"], help="the GUI uses the native Windows theme")
+    ap.add_argument("--theme", default=None, choices=["light", "dark"], help="GUI theme (default: the last one used)")
     ap.add_argument("--cpu", action="store_true", help="force CPU")
     sub = ap.add_subparsers(dest="cmd")
 
