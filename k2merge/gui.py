@@ -1,61 +1,112 @@
 """Tkinter GUI. The window only assembles recipes and hands them to the engine.
 
-Shell (theme, worker thread, progress and log handling) adapted from
-krea-2-lora-merge-tool.py v10.
+Native Windows look (ttk "vista" theme where available), DPI aware, with the
+system font one size larger than the default. Controls that do not apply are
+hidden: block shaping unfolds when a preset other than FULL is chosen, method
+parameters appear for the methods that use them, LoRA rows are added on
+demand, and the rarely needed output options sit behind a toggle.
 """
 from __future__ import annotations
 
+import ctypes
 import json
 import os
 import queue
+import sys
 import threading
 import time
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, font as tkfont, messagebox, ttk
 
 from . import __version__
-from .blocks import BLOCK_PRESETS, MODIFIERS, RECIPES, RECIPE_LABELS, Shaping, build_block_mask
+from .blocks import BLOCK_PRESETS, MODIFIERS, RECIPES, RECIPE_LABELS, Shaping
 from .ckpt_merge import CkptInput, CkptMergeOptions
 from .engine import Cancelled
 from .extract import ExtractOptions
 from .formats import OUTPUT_FORMATS, PASSTHROUGH
-from .keys import GROUPS, KREA2_BLOCKS
+from .keys import KREA2_BLOCKS
 from .lora_merge import LoraInput, LoraMergeOptions
 from .methods import ADVANCED, METHODS, METHOD_LABELS, NEEDS_C
 
-THEMES = {
-    "dark": {"bg": "#12141a", "surface": "#1a1d26", "surface_2": "#232734", "border": "#2e3342",
-             "fg": "#e6e9f0", "fg_muted": "#8b93a7", "accent": "#6c8cff", "accent_2": "#8aa2ff",
-             "accent_fg": "#0d0f14", "danger": "#ff6b6b", "warn": "#ffb454", "ok": "#4ade80",
-             "log_bg": "#0e1015", "trough": "#232734"},
-    "light": {"bg": "#f2f4f8", "surface": "#ffffff", "surface_2": "#eef1f6", "border": "#d3d9e3",
-              "fg": "#1b1f27", "fg_muted": "#697086", "accent": "#3b62e8", "accent_2": "#5b7cf0",
-              "accent_fg": "#ffffff", "danger": "#d23b3b", "warn": "#b46a00", "ok": "#1a8a4a",
-              "log_bg": "#fbfcfe", "trough": "#e2e7ef"},
-}
 ST_FILES = [("safetensors", "*.safetensors"), ("all files", "*.*")]
 JSON_FILES = [("recipe", "*.json"), ("all files", "*.*")]
 STEP = 0.05
+PAD = {"padx": 6, "pady": 3}          # grid cell padding
+LABEL_W = 11                          # width of the label column, in characters
+METHOD_PARAMS = {                     # parameters shown per method
+    "ties": ("density", "lambda"),
+    "dare": ("p", "seed", "lambda", "dare_ties", "density"),
+    "extract": ("beta", "gamma"),
+}
+PARAM_DEFAULTS = (("density", "0.2"), ("lambda", "1.0"), ("p", "0.5"), ("seed", "0"), ("beta", "0.0"), ("gamma", "1.0"))
+PARAM_HELP = {"density": "fraction of each change kept (TIES trim)", "lambda": "scale of the merged change",
+              "p": "drop probability", "seed": "random seed", "beta": "0 = common parts, 1 = distinct parts", "gamma": "sharpness"}
 
 
 def _round_step(x: float) -> float:
     return round(round(float(x) / STEP) * STEP, 2)
 
 
-# ============================================================================== widgets
-class FileSlot(ttk.Frame):
-    """Entry + Browse + Inspect."""
+def _enable_dpi_awareness():
+    if sys.platform != "win32":
+        return
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)      # per monitor v2
+    except Exception:  # noqa: BLE001
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:  # noqa: BLE001
+            pass
 
-    def __init__(self, master, app, label: str, save: bool = False):
-        super().__init__(master, style="Surface.TFrame")
+
+# ============================================================================== small widgets
+class Collapsible(ttk.Frame):
+    """A toggle line that shows or hides a body frame."""
+
+    def __init__(self, master, title: str, open_: bool = False, on_toggle=None):
+        super().__init__(master)
+        self.title = title
+        self.open = tk.BooleanVar(value=open_)
+        self.on_toggle = on_toggle
+        self.btn = ttk.Label(self, text=self._text(), style="Link.TLabel", cursor="hand2")
+        self.btn.bind("<Button-1>", lambda _e: (self.open.set(not self.open.get()), self._toggle()))
+        self.btn.pack(anchor="w", padx=6, pady=2)
+        self.body = ttk.Frame(self)
+        if open_:
+            self.body.pack(fill="x", padx=(18, 0))
+
+    def _text(self):
+        return ("▾ " if self.open.get() else "▸ ") + self.title
+
+    def _toggle(self):
+        self.btn.configure(text=self._text())
+        if self.open.get():
+            self.body.pack(fill="x", padx=(18, 0))
+        else:
+            self.body.pack_forget()
+        if self.on_toggle:
+            self.on_toggle(self.open.get())
+
+    def set_open(self, value: bool):
+        if bool(value) != self.open.get():
+            self.open.set(bool(value))
+            self._toggle()
+
+
+class FileSlot(ttk.Frame):
+    """Label, entry, Browse, Inspect on one line."""
+
+    def __init__(self, master, app, label: str, save: bool = False, hint: str = ""):
+        super().__init__(master)
         self.app = app
         self.var = tk.StringVar()
-        ttk.Label(self, text=label, style="Surface.TLabel", width=9).grid(row=0, column=0, sticky="w")
-        ttk.Entry(self, textvariable=self.var).grid(row=0, column=1, sticky="ew", padx=4)
-        ttk.Button(self, text="Browse", style="Ghost.TButton",
-                   command=self._browse_save if save else self._browse).grid(row=0, column=2)
+        ttk.Label(self, text=label, width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
+        ttk.Entry(self, textvariable=self.var).grid(row=0, column=1, sticky="ew", **PAD)
+        ttk.Button(self, text="Browse...", command=self._browse_save if save else self._browse).grid(row=0, column=2, **PAD)
         if not save:
-            ttk.Button(self, text="Inspect", style="Ghost.TButton", command=self._inspect).grid(row=0, column=3, padx=(2, 0))
+            ttk.Button(self, text="Inspect", command=self._inspect).grid(row=0, column=3, **PAD)
+        if hint:
+            ttk.Label(self, text=hint, style="Hint.TLabel").grid(row=1, column=1, columnspan=3, sticky="w", padx=6)
         self.columnconfigure(1, weight=1)
 
     def _browse(self):
@@ -82,96 +133,148 @@ class FileSlot(ttk.Frame):
         self.var.set(v or "")
 
 
-class ShapingRow(ttk.LabelFrame):
-    """File, strength or weight, block shaping with curve preview. Used for LoRA rows and slot B."""
+class ValueSlider(ttk.Frame):
+    """Slider -10..10 in 0.05 steps with a synchronized entry."""
 
-    def __init__(self, master, app, title: str, kind: str = "lora"):
-        super().__init__(master, text=title, style="Card.TLabelframe")
-        self.app, self.kind = app, kind
-        self.slot = FileSlot(self, app, "file")
-        self.slot.grid(row=0, column=0, columnspan=8, sticky="ew", pady=(2, 4))
-        self.value = tk.DoubleVar(value=1.0)
-        self.value_txt = tk.StringVar(value="1.00")
-        ttk.Label(self, text="weight" if kind == "ckpt" else "strength", style="Surface.TLabel").grid(row=1, column=0, sticky="w")
+    def __init__(self, master, label: str, initial: float = 1.0):
+        super().__init__(master)
+        self.value = tk.DoubleVar(value=initial)
+        self.txt = tk.StringVar(value=f"{initial:.2f}")
+        ttk.Label(self, text=label, width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
         self.scale = ttk.Scale(self, from_=-10.0, to=10.0, variable=self.value, command=self._on_scale)
-        self.scale.grid(row=1, column=1, columnspan=3, sticky="ew", padx=4)
-        e = ttk.Entry(self, textvariable=self.value_txt, width=7)
-        e.grid(row=1, column=4, sticky="w")
+        self.scale.grid(row=0, column=1, sticky="ew", **PAD)
+        e = ttk.Entry(self, textvariable=self.txt, width=7, justify="right")
+        e.grid(row=0, column=2, **PAD)
         e.bind("<Return>", self._on_entry)
         e.bind("<FocusOut>", self._on_entry)
+        self.columnconfigure(1, weight=1)
+
+    def _on_scale(self, _v):
+        v = _round_step(self.value.get())
+        self.value.set(v)
+        self.txt.set(f"{v:.2f}")
+
+    def _on_entry(self, _e=None):
+        try:
+            v = max(-10.0, min(10.0, float(self.txt.get().replace(",", "."))))
+        except ValueError:
+            v = self.value.get()
+        self.set(v)
+
+    def get(self) -> float:
+        return float(self.value.get())
+
+    def set(self, v: float):
+        v = _round_step(v)
+        self.value.set(v)
+        self.txt.set(f"{v:.2f}")
+
+
+class ShapingRow(ttk.LabelFrame):
+    """File, strength or weight, and block shaping that unfolds when a preset is chosen.
+
+    kind "lora": strength. kind "ckpt": weight plus the non block weight field.
+    """
+
+    def __init__(self, master, app, title: str, kind: str = "lora", removable=None):
+        super().__init__(master, text=title, padding=6)
+        self.app, self.kind = app, kind
+        self.slot = FileSlot(self, app, "file")
+        self.slot.grid(row=0, column=0, columnspan=3, sticky="ew")
+        self.slider = ValueSlider(self, "weight" if kind == "ckpt" else "strength", 1.0)
+        self.slider.grid(row=1, column=0, columnspan=3, sticky="ew")
+        # compatibility aliases used by tests and older code
+        self.value, self.value_txt, self._on_entry, self.set_value = self.slider.value, self.slider.txt, self.slider._on_entry, self.slider.set
+
+        ttk.Label(self, text="blocks", width=LABEL_W).grid(row=2, column=0, sticky="w", **PAD)
+        line = ttk.Frame(self)
+        line.grid(row=2, column=1, sticky="w")
         self.preset = tk.StringVar(value="FULL")
-        self.modifier = tk.StringVar(value="Suppress")
-        self.contrast = tk.DoubleVar(value=0.5)
-        self.boost = tk.DoubleVar(value=1.0)
-        ttk.Label(self, text="blocks", style="Surface.TLabel").grid(row=2, column=0, sticky="w")
-        cb = ttk.Combobox(self, textvariable=self.preset, values=BLOCK_PRESETS, state="readonly", width=13)
-        cb.grid(row=2, column=1, sticky="w", padx=4)
-        self.cb_mod = ttk.Combobox(self, textvariable=self.modifier, values=MODIFIERS, state="readonly", width=10)
-        self.cb_mod.grid(row=2, column=2, sticky="w")
-        ttk.Label(self, text="contrast", style="Surface.TLabel").grid(row=2, column=3, sticky="e")
-        self.sc_contrast = ttk.Scale(self, from_=0.0, to=1.0, variable=self.contrast, command=lambda _v: self._changed())
-        self.sc_contrast.grid(row=2, column=4, sticky="ew", padx=4)
-        ttk.Label(self, text="boost", style="Surface.TLabel").grid(row=2, column=5, sticky="e")
-        self.sc_boost = ttk.Scale(self, from_=0.25, to=2.0, variable=self.boost, command=lambda _v: self._changed())
-        self.sc_boost.grid(row=2, column=6, sticky="ew", padx=4)
-        mb = ttk.Menubutton(self, text="Recipes", style="Ghost.TMenubutton")
+        ttk.Combobox(line, textvariable=self.preset, values=BLOCK_PRESETS, state="readonly", width=14).pack(side="left", **PAD)
+        self.preset_hint = ttk.Label(line, text="", style="Hint.TLabel")
+        self.preset_hint.pack(side="left", padx=6)
+        mb = ttk.Menubutton(line, text="Recipes")
         menu = tk.Menu(mb, tearoff=0)
         for key, label in RECIPE_LABELS.items():
             menu.add_command(label=label, command=lambda k=key: self.apply_recipe(k))
         menu.add_command(label="FULL (no shaping)", command=lambda: self.apply_recipe(None))
         mb["menu"] = menu
-        mb.grid(row=2, column=7, sticky="e")
-        self.curve = tk.Canvas(self, height=34, width=200, highlightthickness=0, bg=app.C["surface_2"])
-        self.curve.grid(row=3, column=1, columnspan=6, sticky="ew", padx=4, pady=(2, 4))
-        self.info = ttk.Label(self, text="", style="Muted.TLabel")
-        self.info.grid(row=3, column=7, sticky="e")
+        mb.pack(side="left", padx=(12, 0))
+        self.btn_remove = None
+        if removable is not None:
+            self.btn_remove = ttk.Button(self, text="Remove", command=removable)
+            self.btn_remove.grid(row=2, column=2, sticky="e", **PAD)
+
+        # shaping details, shown when preset != FULL
+        self.detail = ttk.Frame(self)
+        self.modifier = tk.StringVar(value="Suppress")
+        self.contrast = tk.DoubleVar(value=0.5)
+        self.boost = tk.DoubleVar(value=1.0)
+        ttk.Label(self.detail, text="modifier", width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
+        self.cb_mod = ttk.Combobox(self.detail, textvariable=self.modifier, values=MODIFIERS, state="readonly", width=12)
+        self.cb_mod.grid(row=0, column=1, sticky="w", **PAD)
+        self.mod_hint = ttk.Label(self.detail, text="", style="Hint.TLabel")
+        self.mod_hint.grid(row=0, column=2, columnspan=3, sticky="w", padx=6)
+        ttk.Label(self.detail, text="contrast", width=LABEL_W).grid(row=1, column=0, sticky="w", **PAD)
+        self.sc_contrast = ttk.Scale(self.detail, from_=0.0, to=1.0, variable=self.contrast, command=lambda _v: self._changed())
+        self.sc_contrast.grid(row=1, column=1, columnspan=2, sticky="ew", **PAD)
+        self.lbl_contrast = ttk.Label(self.detail, text="0.50", width=5)
+        self.lbl_contrast.grid(row=1, column=3, sticky="w")
+        self.lbl_boost_t = ttk.Label(self.detail, text="boost", width=LABEL_W)
+        self.lbl_boost_t.grid(row=2, column=0, sticky="w", **PAD)
+        self.sc_boost = ttk.Scale(self.detail, from_=0.25, to=2.0, variable=self.boost, command=lambda _v: self._changed())
+        self.sc_boost.grid(row=2, column=1, columnspan=2, sticky="ew", **PAD)
+        self.lbl_boost = ttk.Label(self.detail, text="1.00", width=5)
+        self.lbl_boost.grid(row=2, column=3, sticky="w")
+        ttk.Label(self.detail, text="per block", width=LABEL_W).grid(row=3, column=0, sticky="nw", **PAD)
+        self.curve = tk.Canvas(self.detail, height=40, width=280, highlightthickness=1, highlightbackground="#c8c8c8", bg="#ffffff")
+        self.curve.grid(row=3, column=1, columnspan=2, sticky="ew", **PAD)
+        self.info = ttk.Label(self.detail, text="", style="Hint.TLabel")
+        self.info.grid(row=3, column=3, sticky="w")
         if kind == "ckpt":
-            ttk.Label(self, text="non-block weight (text side, projections)", style="Surface.TLabel").grid(row=4, column=0, columnspan=3, sticky="w")
+            ttk.Label(self.detail, text="non-block", width=LABEL_W).grid(row=4, column=0, sticky="w", **PAD)
             self.non_block_txt = tk.StringVar(value="")
-            ttk.Entry(self, textvariable=self.non_block_txt, width=7).grid(row=4, column=4, sticky="w")
-            ttk.Label(self, text="empty = same as weight", style="Muted.TLabel").grid(row=4, column=5, columnspan=3, sticky="w")
+            ttk.Entry(self.detail, textvariable=self.non_block_txt, width=7, justify="right").grid(row=4, column=1, sticky="w", **PAD)
+            ttk.Label(self.detail, text="weight for the text side and the projections (outside the block mask); empty = same as weight",
+                      style="Hint.TLabel").grid(row=4, column=2, columnspan=2, sticky="w", padx=6)
         else:
             self.non_block_txt = None
-        for c in (1, 2, 3, 4, 6):
-            self.columnconfigure(c, weight=1)
-        for v in (self.preset, self.modifier):
-            v.trace_add("write", lambda *_: self._changed())
+        self.detail.columnconfigure(1, weight=1)
+        self.detail.columnconfigure(2, weight=1)
+        self.columnconfigure(1, weight=1)
+        self.preset.trace_add("write", lambda *_: self._changed())
+        self.modifier.trace_add("write", lambda *_: self._changed())
         self._changed()
 
-    # ---- value handling
-    def _on_scale(self, _v):
-        v = _round_step(self.value.get())
-        self.value.set(v)
-        self.value_txt.set(f"{v:.2f}")
-
-    def _on_entry(self, _e=None):
-        try:
-            v = max(-10.0, min(10.0, float(self.value_txt.get().replace(",", "."))))
-        except ValueError:
-            v = self.value.get()
-        v = _round_step(v)
-        self.value.set(v)
-        self.value_txt.set(f"{v:.2f}")
-
-    def set_value(self, v: float):
-        v = _round_step(v)
-        self.value.set(v)
-        self.value_txt.set(f"{v:.2f}")
-
+    # ---- state
     def _changed(self):
         flat = self.preset.get() == "FULL"
-        state = "disabled" if flat else "normal"
-        self.cb_mod.configure(state="disabled" if flat else "readonly")
-        self.sc_contrast.configure(state=state)
-        self.sc_boost.configure(state=state if self.modifier.get() == "Emphasize" else "disabled")
+        hints = {"FULL": "no shaping: every block at full strength", "COMPOSITION": "blocks 0-8: layout, poses, geometry",
+                 "CHARACTER": "blocks 9-18: identity, faces", "STYLE": "blocks 19-27: textures, grain, rendering style"}
+        self.preset_hint.configure(text=hints.get(self.preset.get(), ""))
+        if flat:
+            self.detail.grid_forget()
+            self.cb_mod.configure(state="disabled")
+            return
+        self.detail.grid(row=3, column=0, columnspan=3, sticky="ew")
+        self.cb_mod.configure(state="readonly")
+        mod = self.modifier.get()
+        self.mod_hint.configure(text={"Suppress": "weaken the LoRA inside the zone, keep the rest",
+                                      "Emphasize": "stronger inside the zone, weaker outside, same average",
+                                      "Isolate": "apply inside the zone only"}.get(mod, ""))
+        emph = mod == "Emphasize"
+        for w in (self.lbl_boost_t, self.sc_boost, self.lbl_boost):
+            w.grid() if emph else w.grid_remove()
+        self.lbl_contrast.configure(text=f"{self.contrast.get():.2f}")
+        self.lbl_boost.configure(text=f"{self.boost.get():.2f}")
         self.draw_curve()
 
     def apply_recipe(self, key: str | None):
         s = RECIPES[key] if key else Shaping()
-        self.preset.set(s.preset)
         self.modifier.set(s.modifier)
         self.contrast.set(s.contrast)
         self.boost.set(s.boost)
+        self.preset.set(s.preset)
         self._changed()
 
     def shaping(self) -> Shaping:
@@ -180,7 +283,7 @@ class ShapingRow(ttk.LabelFrame):
         if self.non_block_txt is not None and self.non_block_txt.get().strip():
             try:
                 nb = float(self.non_block_txt.get().replace(",", "."))
-                w = self.value.get()
+                w = self.slider.get()
                 s.non_block = (nb / w) if abs(w) > 1e-9 else 1.0   # stored as a factor on the weight
             except ValueError:
                 pass
@@ -193,137 +296,192 @@ class ShapingRow(ttk.LabelFrame):
             f = self.shaping().factors(KREA2_BLOCKS)
         except ValueError:
             return
-        w = max(int(c.winfo_width()), 200)
-        h = 34
-        n = len(f)
-        bw = w / n
-        c.create_line(0, h - h / 3, w, h - h / 3, fill=self.app.C["border"])
+        w = max(int(c.winfo_width()), 280)
+        h = 40
+        bw = w / len(f)
+        c.create_line(0, h - h / 3, w, h - h / 3, fill="#d0d0d0")
         for i, v in enumerate(f):
             bh = min(v, 2.0) / 2.0 * (h - 4)
-            col = self.app.C["accent"] if v > 1.0 + 1e-9 else (self.app.C["fg_muted"] if v < 1.0 - 1e-9 else self.app.C["ok"])
+            col = "#2f6fd6" if v > 1.0 + 1e-9 else ("#9aa4b1" if v < 1.0 - 1e-9 else "#3a9d5c")
             c.create_rectangle(i * bw + 1, h - bh, (i + 1) * bw - 1, h, fill=col, outline="")
-        self.info.configure(text=f"min {min(f):.2f}  max {max(f):.2f}")
+        self.info.configure(text=f"min {min(f):.2f}\nmax {max(f):.2f}")
 
     # ---- conversions
     def to_lora_input(self) -> LoraInput | None:
         p = self.slot.get()
-        if not p:
-            return None
-        return LoraInput(p, self.value.get(), self.shaping())
+        return LoraInput(p, self.slider.get(), self.shaping()) if p else None
 
     def to_ckpt_input(self) -> CkptInput | None:
         p = self.slot.get()
-        if not p:
-            return None
-        return CkptInput(p, self.value.get(), self.shaping())
+        return CkptInput(p, self.slider.get(), self.shaping()) if p else None
 
     def load(self, path: str | None, value: float, shaping: Shaping | None):
         self.slot.set(path)
-        self.set_value(value)
+        self.slider.set(value)
         s = shaping or Shaping()
-        self.preset.set(s.preset)
         self.modifier.set(s.modifier)
         self.contrast.set(s.contrast)
         self.boost.set(s.boost)
         if self.non_block_txt is not None:
             self.non_block_txt.set("" if s.non_block is None else f"{s.non_block * value:.2f}")
+        self.preset.set(s.preset)
         self._changed()
 
     def clear(self):
         self.load(None, 1.0, None)
 
 
-# ============================================================================== tabs
-class LoraMergeTab(ttk.Frame):
-    MAX_ROWS = 6
+class RowList(ttk.Frame):
+    """LoRA rows added on demand, up to a maximum."""
 
-    def __init__(self, master, app):
-        super().__init__(master, style="TFrame")
-        self.app = app
+    def __init__(self, master, app, max_rows: int, title="LoRA", initial: int = 1):
+        super().__init__(master)
+        self.app, self.max_rows, self.title = app, max_rows, title
         self.rows: list[ShapingRow] = []
-        self.rows_frame = ttk.Frame(self, style="TFrame")
-        self.rows_frame.pack(fill="x", padx=8, pady=4)
-        bar = ttk.Frame(self, style="TFrame")
-        bar.pack(fill="x", padx=8)
-        ttk.Button(bar, text="+ add LoRA", style="Ghost.TButton", command=self.add_row).pack(side="left")
-        ttk.Button(bar, text="- remove last", style="Ghost.TButton", command=self.remove_row).pack(side="left", padx=4)
-        self.average = tk.BooleanVar(value=False)
-        ttk.Checkbutton(bar, text="average (weights sum to 1: epochs of one run)", variable=self.average).pack(side="left", padx=12)
-
-        opts = ttk.LabelFrame(self, text="Output", style="Card.TLabelframe")
-        opts.pack(fill="x", padx=8, pady=4)
-        self.rank_mode = tk.StringVar(value="concat")
-        ttk.Label(opts, text="rank", style="Surface.TLabel").grid(row=0, column=0, sticky="w")
-        ttk.Radiobutton(opts, text="keep concatenated (exact)", variable=self.rank_mode, value="concat").grid(row=0, column=1, sticky="w")
-        ttk.Radiobutton(opts, text="fixed", variable=self.rank_mode, value="fixed").grid(row=0, column=2, sticky="w")
-        self.rank = tk.StringVar(value="32")
-        ttk.Entry(opts, textvariable=self.rank, width=6).grid(row=0, column=3, sticky="w")
-        ttk.Radiobutton(opts, text="per group (from analysis)", variable=self.rank_mode, value="groups").grid(row=0, column=4, sticky="w")
-        self.group_ranks: dict = {}
-        self.group_lbl = ttk.Label(opts, text="", style="Muted.TLabel")
-        self.group_lbl.grid(row=0, column=5, sticky="w")
-        ttk.Label(opts, text="modules", style="Surface.TLabel").grid(row=1, column=0, sticky="w")
-        self.modules = tk.StringVar(value="intersection")
-        ttk.Combobox(opts, textvariable=self.modules, values=["intersection", "union"], state="readonly", width=12).grid(row=1, column=1, sticky="w")
-        ttk.Label(opts, text="naming", style="Surface.TLabel").grid(row=1, column=2, sticky="e")
-        self.naming = tk.StringVar(value="comfy")
-        ttk.Combobox(opts, textvariable=self.naming, values=["comfy", "kohya", "input"], state="readonly", width=8).grid(row=1, column=3, sticky="w")
-        ttk.Label(opts, text="dtype", style="Surface.TLabel").grid(row=1, column=4, sticky="e")
-        self.dtype = tk.StringVar(value="fp16")
-        ttk.Combobox(opts, textvariable=self.dtype, values=["fp16", "bf16", "fp32"], state="readonly", width=6).grid(row=1, column=5, sticky="w")
-        ttk.Label(opts, text="energy target", style="Surface.TLabel").grid(row=2, column=0, sticky="w")
-        self.target = tk.StringVar(value="0.99")
-        ttk.Combobox(opts, textvariable=self.target, values=["0.9", "0.95", "0.99", "0.995"], width=6).grid(row=2, column=1, sticky="w")
-        self.criterion = tk.StringVar(value="weighted")
-        ttk.Combobox(opts, textvariable=self.criterion, values=["weighted", "per_module"], state="readonly", width=10).grid(row=2, column=2, sticky="w")
-        ttk.Label(opts, text="(rank chosen from the analysis with this target and criterion)", style="Muted.TLabel").grid(row=2, column=3, columnspan=3, sticky="w")
-        self.out = FileSlot(opts, app, "output", save=True)
-        self.out.grid(row=3, column=0, columnspan=6, sticky="ew", pady=(4, 2))
-        opts.columnconfigure(5, weight=1)
-
-        btns = ttk.Frame(self, style="TFrame")
-        btns.pack(fill="x", padx=8, pady=4)
-        ttk.Button(btns, text="Analyze", command=self.analyze).pack(side="left")
-        ttk.Button(btns, text="Plan", command=self.plan).pack(side="left", padx=4)
-        ttk.Button(btns, text="Merge", style="Accent.TButton", command=self.run).pack(side="left", padx=4)
-        ttk.Button(btns, text="Save recipe", style="Ghost.TButton", command=lambda: app.save_recipe(self)).pack(side="right")
-        ttk.Button(btns, text="Load recipe", style="Ghost.TButton", command=lambda: app.load_recipe(self)).pack(side="right", padx=4)
-        self.add_row()
-        self.add_row()
+        self.rows_frame = ttk.Frame(self)
+        self.rows_frame.pack(fill="x")
+        bar = ttk.Frame(self)
+        bar.pack(fill="x", pady=(2, 0))
+        self.btn_add = ttk.Button(bar, text=f"+ Add {title}", command=self.add_row)
+        self.btn_add.pack(side="left", padx=6)
+        for _ in range(initial):
+            self.add_row()
 
     def add_row(self):
-        if len(self.rows) >= self.MAX_ROWS:
+        if len(self.rows) >= self.max_rows:
             return
-        r = ShapingRow(self.rows_frame, self.app, f"LoRA {len(self.rows) + 1}", kind="lora")
-        r.pack(fill="x", pady=2)
+        r = ShapingRow(self.rows_frame, self.app, f"{self.title} {len(self.rows) + 1}", kind="lora",
+                       removable=lambda: self.remove_row(r) if len(self.rows) > 1 else None)
+        r.pack(fill="x", pady=3)
         self.rows.append(r)
+        self._refresh()
 
-    def remove_row(self):
-        if len(self.rows) > 1:
-            self.rows.pop().destroy()
+    def remove_row(self, row: ShapingRow):
+        if row in self.rows and len(self.rows) > 1:
+            self.rows.remove(row)
+            row.destroy()
+            self._refresh()
+
+    def _refresh(self):
+        for i, r in enumerate(self.rows):
+            r.configure(text=f"{self.title} {i + 1}")
+            if r.btn_remove is not None:
+                r.btn_remove.grid() if len(self.rows) > 1 else r.btn_remove.grid_remove()
+        self.btn_add.configure(state="normal" if len(self.rows) < self.max_rows else "disabled")
+
+    def set_count(self, n: int):
+        n = max(1, min(n, self.max_rows))
+        while len(self.rows) < n:
+            self.add_row()
+        while len(self.rows) > n:
+            self.remove_row(self.rows[-1])
 
     def inputs(self) -> list[LoraInput]:
         return [i for i in (r.to_lora_input() for r in self.rows) if i is not None]
 
+    def load(self, inputs: list[LoraInput]):
+        self.set_count(len(inputs))
+        for row, inp in zip(self.rows, inputs):
+            row.load(inp.path, inp.strength, inp.shaping)
+        if not inputs:
+            self.rows[0].clear()
+
+
+def _labeled(parent, row, text, widget_factory, hint: str = "", col=0):
+    """label | widget | hint, on one grid row. Returns the widget."""
+    ttk.Label(parent, text=text, width=LABEL_W).grid(row=row, column=col, sticky="w", **PAD)
+    w = widget_factory(parent)
+    w.grid(row=row, column=col + 1, sticky="w", **PAD)
+    if hint:
+        ttk.Label(parent, text=hint, style="Hint.TLabel").grid(row=row, column=col + 2, sticky="w", padx=6)
+    return w
+
+
+# ============================================================================== tabs
+class LoraMergeTab(ttk.Frame):
+    def __init__(self, master, app):
+        super().__init__(master, padding=8)
+        self.app = app
+        self.list = RowList(self, app, 6, "LoRA", initial=2)
+        self.list.pack(fill="x")
+        self.rows = self.list.rows   # same list object
+        self.average = tk.BooleanVar(value=False)
+        ttk.Checkbutton(self, text="Average: normalize the strengths to sum to 1 (epochs of one training run)",
+                        variable=self.average).pack(anchor="w", padx=6, pady=(6, 2))
+
+        out = ttk.LabelFrame(self, text="Output", padding=6)
+        out.pack(fill="x", pady=6)
+        ttk.Label(out, text="rank", width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
+        rk = ttk.Frame(out)
+        rk.grid(row=0, column=1, columnspan=2, sticky="w")
+        self.rank_mode = tk.StringVar(value="concat")
+        ttk.Radiobutton(rk, text="keep the concatenated rank (exact)", variable=self.rank_mode, value="concat", command=self._rank_changed).pack(side="left", padx=6)
+        ttk.Radiobutton(rk, text="fixed", variable=self.rank_mode, value="fixed", command=self._rank_changed).pack(side="left", padx=(12, 2))
+        self.rank = tk.StringVar(value="32")
+        self.rank_entry = ttk.Entry(rk, textvariable=self.rank, width=6, justify="right")
+        self.rank_entry.pack(side="left")
+        ttk.Radiobutton(rk, text="per group, from the analysis", variable=self.rank_mode, value="groups", command=self._rank_changed).pack(side="left", padx=(12, 2))
+        self.group_ranks: dict = {}
+        self.group_lbl = ttk.Label(rk, text="", style="Hint.TLabel")
+        self.group_lbl.pack(side="left", padx=6)
+
+        self.analysis_frame = ttk.Frame(out)
+        ttk.Label(self.analysis_frame, text="energy target", width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
+        self.target = tk.StringVar(value="0.99")
+        ttk.Combobox(self.analysis_frame, textvariable=self.target, values=["0.9", "0.95", "0.99", "0.995"], width=6).grid(row=0, column=1, sticky="w", **PAD)
+        self.criterion = tk.StringVar(value="weighted")
+        ttk.Combobox(self.analysis_frame, textvariable=self.criterion, values=["weighted", "per_module"], state="readonly", width=11).grid(row=0, column=2, sticky="w", **PAD)
+        ttk.Label(self.analysis_frame, text="Analyze picks one rank per group for this target; weighted = pooled energy, per_module = every module",
+                  style="Hint.TLabel").grid(row=0, column=3, sticky="w", padx=6)
+        self.analysis_frame.grid(row=1, column=0, columnspan=3, sticky="ew")
+
+        self.modules = _labeled(out, 2, "modules", lambda p: ttk.Combobox(p, values=["intersection", "union"], state="readonly", width=12),
+                                "intersection = modules present in every input; union = keep modules present in any input")
+        self.modules.set("intersection")
+        self.naming = _labeled(out, 3, "naming", lambda p: ttk.Combobox(p, values=["comfy", "kohya", "input"], state="readonly", width=12),
+                               "key convention of the output file")
+        self.naming.set("comfy")
+        self.dtype = _labeled(out, 4, "dtype", lambda p: ttk.Combobox(p, values=["fp16", "bf16", "fp32"], state="readonly", width=12))
+        self.dtype.set("fp16")
+        self.out = FileSlot(out, app, "output", save=True)
+        self.out.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(6, 0))
+        out.columnconfigure(2, weight=1)
+
+        btns = ttk.Frame(self)
+        btns.pack(fill="x", pady=4)
+        ttk.Button(btns, text="Analyze", command=self.analyze).pack(side="left", padx=6)
+        ttk.Button(btns, text="Plan", command=self.plan).pack(side="left", padx=6)
+        ttk.Button(btns, text="Merge", style="Accent.TButton", command=self.run).pack(side="left", padx=6)
+        ttk.Button(btns, text="Save recipe...", command=lambda: app.save_recipe(self)).pack(side="right", padx=6)
+        ttk.Button(btns, text="Load recipe...", command=lambda: app.load_recipe(self)).pack(side="right", padx=6)
+        self._rank_changed()
+
+    def _rank_changed(self):
+        mode = self.rank_mode.get()
+        self.rank_entry.configure(state="normal" if mode == "fixed" else "disabled")
+
+    def add_row(self):
+        self.list.add_row()
+
+    def remove_row(self):
+        if len(self.list.rows) > 1:
+            self.list.remove_row(self.list.rows[-1])
+
+    def inputs(self) -> list[LoraInput]:
+        return self.list.inputs()
+
     def options(self) -> LoraMergeOptions:
-        o = LoraMergeOptions(average=self.average.get(), rank_mode=self.rank_mode.get(),
-                             rank=int(self.rank.get()) if self.rank.get().strip().isdigit() else None,
-                             group_ranks=dict(self.group_ranks), modules=self.modules.get(),
-                             naming=self.naming.get(), dtype=self.dtype.get())
-        return o
+        return LoraMergeOptions(average=self.average.get(), rank_mode=self.rank_mode.get(),
+                                rank=int(self.rank.get()) if self.rank.get().strip().isdigit() else None,
+                                group_ranks=dict(self.group_ranks), modules=self.modules.get(),
+                                naming=self.naming.get(), dtype=self.dtype.get())
 
     def to_recipe(self) -> dict:
         return {"function": "lora_merge", "inputs": [i.to_dict() for i in self.inputs()],
                 "options": self.options().to_dict(), "output": self.out.get()}
 
     def from_recipe(self, r: dict):
-        inputs = [LoraInput.from_dict(d) for d in r.get("inputs", [])]
-        while len(self.rows) < max(1, len(inputs)):
-            self.add_row()
-        while len(self.rows) > max(1, len(inputs)):
-            self.remove_row()
-        for row, inp in zip(self.rows, inputs):
-            row.load(inp.path, inp.strength, inp.shaping)
+        self.list.load([LoraInput.from_dict(d) for d in r.get("inputs", [])])
         o = LoraMergeOptions.from_dict(r.get("options"))
         self.average.set(o.average)
         self.rank_mode.set(o.rank_mode)
@@ -334,6 +492,7 @@ class LoraMergeTab(ttk.Frame):
         self.naming.set(o.naming)
         self.dtype.set(o.dtype)
         self.out.set(r.get("output"))
+        self._rank_changed()
 
     def _check(self) -> bool:
         if not self.inputs():
@@ -374,7 +533,6 @@ class LoraMergeTab(ttk.Frame):
             messagebox.showwarning("LoRA merge", "Choose an output file.")
             return
         inputs, opts = self.inputs(), self.options()
-        recipe = self.to_recipe()
 
         def job(progress, cancel, log):
             from .lora_merge import merge_loras
@@ -383,67 +541,77 @@ class LoraMergeTab(ttk.Frame):
         def done(res):
             self.app.log(f"wrote {res.path}: {res.modules} modules, rank {res.rank_min}-{res.rank_max}, "
                          f"energy kept >= {res.kept_min * 100:.2f}%, {len(res.dropped)} dropped, {res.seconds:.1f}s")
-            self.app.last_recipe = recipe
         self.app.run_job("Merging LoRAs", job, done)
 
 
 class ExtractTab(ttk.Frame):
     def __init__(self, master, app):
-        super().__init__(master, style="TFrame")
+        super().__init__(master, padding=8)
         self.app = app
-        card = ttk.LabelFrame(self, text="Checkpoints", style="Card.TLabelframe")
-        card.pack(fill="x", padx=8, pady=4)
-        self.base = FileSlot(card, app, "base")
-        self.base.pack(fill="x", pady=2)
-        self.target = FileSlot(card, app, "target")
-        self.target.pack(fill="x", pady=2)
-        ttk.Label(card, text="The LoRA approximates target minus base. Both may be bf16, fp8 scaled or int8 convrot.",
-                  style="Muted.TLabel").pack(anchor="w")
+        card = ttk.LabelFrame(self, text="Checkpoints", padding=6)
+        card.pack(fill="x", pady=4)
+        self.base = FileSlot(card, app, "base", hint="the model the LoRA will be applied to")
+        self.base.pack(fill="x")
+        self.target = FileSlot(card, app, "target", hint="the fine tuned model; the LoRA approximates target minus base")
+        self.target.pack(fill="x")
 
-        opts = ttk.LabelFrame(self, text="Extraction", style="Card.TLabelframe")
-        opts.pack(fill="x", padx=8, pady=4)
-        ttk.Label(opts, text="rank", style="Surface.TLabel").grid(row=0, column=0, sticky="w")
+        opts = ttk.LabelFrame(self, text="Extraction", padding=6)
+        opts.pack(fill="x", pady=4)
+        rk = ttk.Frame(opts)
+        ttk.Label(opts, text="rank", width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
+        rk.grid(row=0, column=1, columnspan=2, sticky="w")
         self.rank = tk.StringVar(value="32")
-        ttk.Entry(opts, textvariable=self.rank, width=6).grid(row=0, column=1, sticky="w")
+        ttk.Entry(rk, textvariable=self.rank, width=6, justify="right").pack(side="left", padx=6)
         self.use_groups = tk.BooleanVar(value=False)
-        ttk.Checkbutton(opts, text="per group ranks from analysis", variable=self.use_groups).grid(row=0, column=2, sticky="w")
+        ttk.Checkbutton(rk, text="use the per group ranks from the analysis", variable=self.use_groups).pack(side="left", padx=12)
         self.group_ranks: dict = {}
-        self.group_lbl = ttk.Label(opts, text="", style="Muted.TLabel")
-        self.group_lbl.grid(row=0, column=3, columnspan=3, sticky="w")
-        ttk.Label(opts, text="modules", style="Surface.TLabel").grid(row=1, column=0, sticky="w")
-        self.filter = tk.StringVar(value="all")
-        ttk.Combobox(opts, textvariable=self.filter, values=["all", "attn", "blocks", "custom"], state="readonly", width=8).grid(row=1, column=1, sticky="w")
-        ttk.Label(opts, text="include regex", style="Surface.TLabel").grid(row=1, column=2, sticky="e")
+        self.group_lbl = ttk.Label(rk, text="", style="Hint.TLabel")
+        self.group_lbl.pack(side="left")
+        self.filter = _labeled(opts, 1, "modules", lambda p: ttk.Combobox(p, values=["all", "attn", "blocks", "custom"], state="readonly", width=12),
+                               "all = every linear (264); attn = attention only (140); blocks = block linears (224); custom = regex")
+        self.filter.set("all")
+        self.filter.bind("<<ComboboxSelected>>", lambda _e: self._filter_changed())
+        self.custom = ttk.Frame(opts)
+        ttk.Label(self.custom, text="include", width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
         self.include = tk.StringVar()
-        ttk.Entry(opts, textvariable=self.include, width=18).grid(row=1, column=3, sticky="w")
-        ttk.Label(opts, text="exclude regex", style="Surface.TLabel").grid(row=1, column=4, sticky="e")
+        ttk.Entry(self.custom, textvariable=self.include, width=28).grid(row=0, column=1, sticky="w", **PAD)
+        ttk.Label(self.custom, text="exclude", width=LABEL_W).grid(row=1, column=0, sticky="w", **PAD)
         self.exclude = tk.StringVar()
-        ttk.Entry(opts, textvariable=self.exclude, width=18).grid(row=1, column=5, sticky="w")
-        ttk.Label(opts, text="SVD", style="Surface.TLabel").grid(row=2, column=0, sticky="w")
-        self.method = tk.StringVar(value="randomized")
-        ttk.Combobox(opts, textvariable=self.method, values=["randomized", "full"], state="readonly", width=10).grid(row=2, column=1, sticky="w")
-        ttk.Label(opts, text="naming", style="Surface.TLabel").grid(row=2, column=2, sticky="e")
-        self.naming = tk.StringVar(value="comfy")
-        ttk.Combobox(opts, textvariable=self.naming, values=["comfy", "kohya"], state="readonly", width=8).grid(row=2, column=3, sticky="w")
-        ttk.Label(opts, text="dtype", style="Surface.TLabel").grid(row=2, column=4, sticky="e")
-        self.dtype = tk.StringVar(value="fp16")
-        ttk.Combobox(opts, textvariable=self.dtype, values=["fp16", "bf16", "fp32"], state="readonly", width=6).grid(row=2, column=5, sticky="w")
-        ttk.Label(opts, text="energy target", style="Surface.TLabel").grid(row=3, column=0, sticky="w")
+        ttk.Entry(self.custom, textvariable=self.exclude, width=28).grid(row=1, column=1, sticky="w", **PAD)
+        ttk.Label(self.custom, text="regular expressions on module names; include wins over exclude", style="Hint.TLabel").grid(row=0, column=2, rowspan=2, sticky="w", padx=6)
+        self.method = _labeled(opts, 3, "SVD", lambda p: ttk.Combobox(p, values=["randomized", "full"], state="readonly", width=12),
+                               "randomized is fast; full is exact and slower")
+        self.method.set("randomized")
+        self.naming = _labeled(opts, 4, "naming", lambda p: ttk.Combobox(p, values=["comfy", "kohya"], state="readonly", width=12))
+        self.naming.set("comfy")
+        self.dtype = _labeled(opts, 5, "dtype", lambda p: ttk.Combobox(p, values=["fp16", "bf16", "fp32"], state="readonly", width=12))
+        self.dtype.set("fp16")
+        an = ttk.Frame(opts)
+        an.grid(row=6, column=0, columnspan=3, sticky="ew")
+        ttk.Label(an, text="energy target", width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
         self.target_e = tk.StringVar(value="0.99")
-        ttk.Combobox(opts, textvariable=self.target_e, values=["0.9", "0.95", "0.99", "0.995"], width=6).grid(row=3, column=1, sticky="w")
+        ttk.Combobox(an, textvariable=self.target_e, values=["0.9", "0.95", "0.99", "0.995"], width=6).grid(row=0, column=1, sticky="w", **PAD)
         self.criterion = tk.StringVar(value="weighted")
-        ttk.Combobox(opts, textvariable=self.criterion, values=["weighted", "per_module"], state="readonly", width=10).grid(row=3, column=2, sticky="w")
+        ttk.Combobox(an, textvariable=self.criterion, values=["weighted", "per_module"], state="readonly", width=11).grid(row=0, column=2, sticky="w", **PAD)
+        ttk.Label(an, text="Analyze reports the rank needed per group and the quantization noise floor", style="Hint.TLabel").grid(row=0, column=3, sticky="w", padx=6)
         self.out = FileSlot(opts, app, "output", save=True)
-        self.out.grid(row=4, column=0, columnspan=6, sticky="ew", pady=(4, 2))
-        opts.columnconfigure(5, weight=1)
+        self.out.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(6, 0))
+        opts.columnconfigure(2, weight=1)
 
-        btns = ttk.Frame(self, style="TFrame")
-        btns.pack(fill="x", padx=8, pady=4)
-        ttk.Button(btns, text="Analyze", command=self.analyze).pack(side="left")
-        ttk.Button(btns, text="Plan", command=self.plan).pack(side="left", padx=4)
-        ttk.Button(btns, text="Extract", style="Accent.TButton", command=self.run).pack(side="left", padx=4)
-        ttk.Button(btns, text="Save recipe", style="Ghost.TButton", command=lambda: app.save_recipe(self)).pack(side="right")
-        ttk.Button(btns, text="Load recipe", style="Ghost.TButton", command=lambda: app.load_recipe(self)).pack(side="right", padx=4)
+        btns = ttk.Frame(self)
+        btns.pack(fill="x", pady=4)
+        ttk.Button(btns, text="Analyze", command=self.analyze).pack(side="left", padx=6)
+        ttk.Button(btns, text="Plan", command=self.plan).pack(side="left", padx=6)
+        ttk.Button(btns, text="Extract", style="Accent.TButton", command=self.run).pack(side="left", padx=6)
+        ttk.Button(btns, text="Save recipe...", command=lambda: app.save_recipe(self)).pack(side="right", padx=6)
+        ttk.Button(btns, text="Load recipe...", command=lambda: app.load_recipe(self)).pack(side="right", padx=6)
+        self._filter_changed()
+
+    def _filter_changed(self):
+        if self.filter.get() == "custom":
+            self.custom.grid(row=2, column=0, columnspan=3, sticky="ew")
+        else:
+            self.custom.grid_forget()
 
     def options(self) -> ExtractOptions:
         return ExtractOptions(rank=int(self.rank.get()) if self.rank.get().strip().isdigit() else 32,
@@ -470,6 +638,7 @@ class ExtractTab(ttk.Frame):
         self.naming.set(o.naming)
         self.dtype.set(o.dtype)
         self.out.set(r.get("output"))
+        self._filter_changed()
 
     def _check(self) -> bool:
         if not (self.base.get() and self.target.get()):
@@ -524,93 +693,116 @@ class ExtractTab(ttk.Frame):
 
 class CkptTab(ttk.Frame):
     def __init__(self, master, app):
-        super().__init__(master, style="TFrame")
+        super().__init__(master, padding=8)
         self.app = app
-        outer = ttk.Frame(self, style="TFrame")
-        outer.pack(fill="both", expand=True)
-        left = ttk.Frame(outer, style="TFrame")
-        left.pack(side="left", fill="both", expand=True, padx=(8, 4), pady=4)
-        right = ttk.Frame(outer, style="TFrame")
-        right.pack(side="left", fill="both", expand=True, padx=(4, 8), pady=4)
+        cols = ttk.Frame(self)
+        cols.pack(fill="both", expand=True)
+        left = ttk.Frame(cols)
+        left.pack(side="left", fill="both", expand=True, padx=(0, 6))
+        right = ttk.Frame(cols)
+        right.pack(side="left", fill="both", expand=True, padx=(6, 0))
 
-        ck = ttk.LabelFrame(left, text="Checkpoints", style="Card.TLabelframe")
-        ck.pack(fill="x", pady=2)
-        self.A = FileSlot(ck, app, "A primary")
-        self.A.pack(fill="x", pady=2)
-        self.B = ShapingRow(ck, app, "B secondary (optional)", kind="ckpt")
-        self.B.pack(fill="x", pady=2)
-        self.C = FileSlot(ck, app, "C reference")
-        self.C.pack(fill="x", pady=2)
-        ttk.Label(ck, text="C is the common ancestor of A and B (usually the official Turbo file). Needed by TIES, DARE, trainDifference, extract.",
-                  style="Muted.TLabel").pack(anchor="w")
+        ck = ttk.LabelFrame(left, text="Checkpoints", padding=6)
+        ck.pack(fill="x", pady=4)
+        self.A = FileSlot(ck, app, "A  primary", hint="the model being changed; always weight 1")
+        self.A.pack(fill="x")
+        self.B = ShapingRow(ck, app, "B  secondary (optional)", kind="ckpt")
+        self.B.pack(fill="x", pady=4)
+        self.C = FileSlot(ck, app, "C  reference", hint="optional: the common ancestor of A and B, usually the official Turbo file")
+        self.C.pack(fill="x")
 
-        mt = ttk.LabelFrame(left, text="Method", style="Card.TLabelframe")
-        mt.pack(fill="x", pady=2)
+        mt = ttk.LabelFrame(left, text="Method", padding=6)
+        mt.pack(fill="x", pady=4)
+        ttk.Label(mt, text="method", width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
         self.method = tk.StringVar(value="add_difference")
         self.advanced = tk.BooleanVar(value=False)
         self.cb_method = ttk.Combobox(mt, textvariable=self.method, values=self._method_values(), state="readonly", width=18)
-        self.cb_method.grid(row=0, column=0, sticky="w")
-        ttk.Checkbutton(mt, text="advanced methods", variable=self.advanced, command=self._refresh_methods).grid(row=0, column=1, sticky="w", padx=8)
-        self.method_lbl = ttk.Label(mt, text="", style="Muted.TLabel", wraplength=520, justify="left")
-        self.method_lbl.grid(row=1, column=0, columnspan=4, sticky="w", pady=(2, 4))
+        self.cb_method.grid(row=0, column=1, sticky="w", **PAD)
+        ttk.Checkbutton(mt, text="show advanced methods", variable=self.advanced, command=self._refresh_methods).grid(row=0, column=2, sticky="w", padx=12)
+        self.method_lbl = ttk.Label(mt, text="", style="Hint.TLabel", wraplength=560, justify="left")
+        self.method_lbl.grid(row=1, column=1, columnspan=2, sticky="w", padx=6, pady=(0, 4))
+        self.params_frame = ttk.Frame(mt)
+        self.params_frame.grid(row=2, column=0, columnspan=3, sticky="ew")
         self.params: dict[str, tk.StringVar] = {}
-        pf = ttk.Frame(mt, style="Surface.TFrame")
-        pf.grid(row=2, column=0, columnspan=4, sticky="w")
-        for i, (name, default) in enumerate((("density", "0.2"), ("lambda", "1.0"), ("p", "0.5"), ("seed", "0"), ("beta", "0.0"), ("gamma", "1.0"))):
-            ttk.Label(pf, text=name, style="Surface.TLabel").grid(row=0, column=2 * i, sticky="e", padx=(6, 2))
+        self.param_widgets: dict[str, list] = {}
+        for i, (name, default) in enumerate(PARAM_DEFAULTS):
             v = tk.StringVar(value=default)
             self.params[name] = v
-            ttk.Entry(pf, textvariable=v, width=6).grid(row=0, column=2 * i + 1, sticky="w")
+            lbl = ttk.Label(self.params_frame, text=name, width=LABEL_W)
+            ent = ttk.Entry(self.params_frame, textvariable=v, width=7, justify="right")
+            hint = ttk.Label(self.params_frame, text=PARAM_HELP.get(name, ""), style="Hint.TLabel")
+            lbl.grid(row=i, column=0, sticky="w", **PAD)
+            ent.grid(row=i, column=1, sticky="w", **PAD)
+            hint.grid(row=i, column=2, sticky="w", padx=6)
+            self.param_widgets[name] = [lbl, ent, hint]
         self.dare_ties = tk.BooleanVar(value=False)
-        ttk.Checkbutton(pf, text="DARE then TIES", variable=self.dare_ties).grid(row=0, column=12, padx=6)
+        cb = ttk.Checkbutton(self.params_frame, text="apply TIES after the DARE drop", variable=self.dare_ties)
+        cb.grid(row=len(PARAM_DEFAULTS), column=0, columnspan=3, sticky="w", **PAD)
+        self.param_widgets["dare_ties"] = [cb]
         self.lora_mode = tk.StringVar(value="after")
-        ttk.Label(mt, text="LoRAs", style="Surface.TLabel").grid(row=3, column=0, sticky="w")
-        ttk.Combobox(mt, textvariable=self.lora_mode, values=["after", "task_vectors"], state="readonly", width=12).grid(row=3, column=1, sticky="w")
-        ttk.Label(mt, text="after = added after the method; task_vectors = joins TIES / DARE", style="Muted.TLabel").grid(row=3, column=2, columnspan=2, sticky="w")
+        self.lora_mode_widgets = [ttk.Label(self.params_frame, text="LoRAs", width=LABEL_W),
+                                  ttk.Combobox(self.params_frame, textvariable=self.lora_mode, values=["after", "task_vectors"], state="readonly", width=12),
+                                  ttk.Label(self.params_frame, text="after = added after the method; task_vectors = trimmed and merged with B's change", style="Hint.TLabel")]
+        r = len(PARAM_DEFAULTS) + 1
+        self.lora_mode_widgets[0].grid(row=r, column=0, sticky="w", **PAD)
+        self.lora_mode_widgets[1].grid(row=r, column=1, sticky="w", **PAD)
+        self.lora_mode_widgets[2].grid(row=r, column=2, sticky="w", padx=6)
         self.method.trace_add("write", lambda *_: self._method_changed())
-        self._method_changed()
 
-        lf = ttk.LabelFrame(right, text="LoRAs (0 to 4)", style="Card.TLabelframe")
-        lf.pack(fill="x", pady=2)
-        self.loras = [ShapingRow(lf, app, f"LoRA {i + 1}", kind="lora") for i in range(4)]
-        for r in self.loras:
-            r.pack(fill="x", pady=1)
+        lf = ttk.LabelFrame(right, text="LoRAs (up to 4)", padding=6)
+        lf.pack(fill="x", pady=4)
+        self.lora_list = RowList(lf, app, 4, "LoRA", initial=1)
+        self.lora_list.pack(fill="x")
+        self.loras = self.lora_list.rows
 
-        of = ttk.LabelFrame(left, text="Output", style="Card.TLabelframe")
-        of.pack(fill="x", pady=2)
-        ttk.Label(of, text="format", style="Surface.TLabel").grid(row=0, column=0, sticky="w")
-        self.fmt = tk.StringVar(value="bf16")
-        ttk.Combobox(of, textvariable=self.fmt, values=list(OUTPUT_FORMATS), state="readonly", width=12).grid(row=0, column=1, sticky="w")
-        ttk.Label(of, text="passthrough", style="Surface.TLabel").grid(row=0, column=2, sticky="e")
-        self.passthrough = tk.StringVar(value="official")
-        ttk.Combobox(of, textvariable=self.passthrough, values=list(PASSTHROUGH), state="readonly", width=8).grid(row=0, column=3, sticky="w")
-        ttk.Label(of, text="fp8 layers", style="Surface.TLabel").grid(row=0, column=4, sticky="e")
-        self.fp8_set = tk.StringVar(value="official")
-        ttk.Combobox(of, textvariable=self.fp8_set, values=["official", "blocks"], state="readonly", width=8).grid(row=0, column=5, sticky="w")
-        ttk.Label(of, text="int8 clip", style="Surface.TLabel").grid(row=0, column=6, sticky="e")
-        self.int8_clip = tk.StringVar(value="mse")
-        ttk.Combobox(of, textvariable=self.int8_clip, values=["mse", "absmax"], state="readonly", width=7).grid(row=0, column=7, sticky="w")
-        self.as_lora = tk.BooleanVar(value=False)
-        ttk.Checkbutton(of, text="output as LoRA (result minus C, or minus A)", variable=self.as_lora).grid(row=1, column=0, columnspan=3, sticky="w")
-        ttk.Label(of, text="rank", style="Surface.TLabel").grid(row=1, column=3, sticky="e")
-        self.lora_rank = tk.StringVar(value="32")
-        ttk.Entry(of, textvariable=self.lora_rank, width=6).grid(row=1, column=4, sticky="w")
-        self.lora_naming = tk.StringVar(value="comfy")
-        ttk.Combobox(of, textvariable=self.lora_naming, values=["comfy", "kohya"], state="readonly", width=8).grid(row=1, column=5, sticky="w")
-        self.keep_meta = tk.BooleanVar(value=True)
-        ttk.Checkbutton(of, text="keep A's metadata", variable=self.keep_meta).grid(row=2, column=0, columnspan=2, sticky="w")
+        of = ttk.LabelFrame(left, text="Output", padding=6)
+        of.pack(fill="x", pady=4)
+        self.fmt = _labeled(of, 0, "format", lambda p: ttk.Combobox(p, values=list(OUTPUT_FORMATS), state="readonly", width=14),
+                            "keep = same format as A; fp8_scaled and int8_convrot use the official Krea 2 layouts")
+        self.fmt.set("bf16")
+        self.fmt.bind("<<ComboboxSelected>>", lambda _e: self._format_changed())
         self.out = FileSlot(of, app, "output", save=True)
-        self.out.grid(row=3, column=0, columnspan=6, sticky="ew", pady=(4, 2))
-        of.columnconfigure(5, weight=1)
+        self.out.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(4, 2))
+        self.adv = Collapsible(of, "More output options")
+        self.adv.grid(row=2, column=0, columnspan=3, sticky="ew")
+        body = self.adv.body
+        self.passthrough = _labeled(body, 0, "passthrough", lambda p: ttk.Combobox(p, values=list(PASSTHROUGH), state="readonly", width=10),
+                                    "dtype of tensors that stay unquantized: official mirrors the official file")
+        self.passthrough.set("official")
+        self.fp8_set = _labeled(body, 1, "fp8 layers", lambda p: ttk.Combobox(p, values=["official", "blocks"], state="readonly", width=10),
+                                "official = 256 layers incl. text fusion; blocks = the 224 block linears")
+        self.fp8_set.set("official")
+        self.int8_clip = _labeled(body, 2, "int8 clip", lambda p: ttk.Combobox(p, values=["mse", "absmax"], state="readonly", width=10),
+                                  "mse reproduces the official int8 file; absmax is plain scaling")
+        self.int8_clip.set("mse")
+        self.fmt_rows = {name: list(body.grid_slaves(row=i)) for i, name in enumerate(("passthrough", "fp8", "int8"))}
+        self.keep_meta = tk.BooleanVar(value=True)
+        ttk.Checkbutton(body, text="keep A's metadata", variable=self.keep_meta).grid(row=3, column=0, columnspan=3, sticky="w", **PAD)
+        self.as_lora = tk.BooleanVar(value=False)
+        ttk.Checkbutton(body, text="write the result as a LoRA (result minus C, or minus A) instead of a checkpoint",
+                        variable=self.as_lora, command=self._as_lora_changed).grid(row=4, column=0, columnspan=3, sticky="w", **PAD)
+        self.lora_out_frame = ttk.Frame(body)
+        ttk.Label(self.lora_out_frame, text="LoRA rank", width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
+        self.lora_rank = tk.StringVar(value="32")
+        ttk.Entry(self.lora_out_frame, textvariable=self.lora_rank, width=6, justify="right").grid(row=0, column=1, sticky="w", **PAD)
+        ttk.Label(self.lora_out_frame, text="naming", width=LABEL_W).grid(row=1, column=0, sticky="w", **PAD)
+        self.lora_naming = tk.StringVar(value="comfy")
+        ttk.Combobox(self.lora_out_frame, textvariable=self.lora_naming, values=["comfy", "kohya"], state="readonly", width=10).grid(row=1, column=1, sticky="w", **PAD)
+        body.columnconfigure(2, weight=1)
+        of.columnconfigure(2, weight=1)
 
-        btns = ttk.Frame(left, style="TFrame")
+        btns = ttk.Frame(left)
         btns.pack(fill="x", pady=4)
-        ttk.Button(btns, text="Report", command=self.report).pack(side="left")
-        ttk.Button(btns, text="Plan", command=self.plan).pack(side="left", padx=4)
-        ttk.Button(btns, text="Merge / Convert", style="Accent.TButton", command=self.run).pack(side="left", padx=4)
-        ttk.Button(btns, text="Save recipe", style="Ghost.TButton", command=lambda: app.save_recipe(self)).pack(side="right")
-        ttk.Button(btns, text="Load recipe", style="Ghost.TButton", command=lambda: app.load_recipe(self)).pack(side="right", padx=4)
+        ttk.Button(btns, text="Report", command=self.report).pack(side="left", padx=6)
+        ttk.Button(btns, text="Plan", command=self.plan).pack(side="left", padx=6)
+        ttk.Button(btns, text="Merge / Convert", style="Accent.TButton", command=self.run).pack(side="left", padx=6)
+        ttk.Button(btns, text="Save recipe...", command=lambda: app.save_recipe(self)).pack(side="right", padx=6)
+        ttk.Button(btns, text="Load recipe...", command=lambda: app.load_recipe(self)).pack(side="right", padx=6)
+        self._method_changed()
+        self._format_changed()
+        self._as_lora_changed()
 
+    # ---- dynamic visibility
     def _method_values(self):
         return [m for m in METHODS if self.advanced.get() or m not in ADVANCED]
 
@@ -623,9 +815,30 @@ class CkptTab(ttk.Frame):
         m = self.method.get()
         txt = METHOD_LABELS.get(m, "")
         if m in NEEDS_C:
-            txt += "\nWithout C the reference is A."
+            txt += "  Without C, A is the reference."
         self.method_lbl.configure(text=txt)
+        shown = set(METHOD_PARAMS.get(m, ()))
+        for name, widgets in self.param_widgets.items():
+            for w in widgets:
+                w.grid() if name in shown else w.grid_remove()
+        for w in self.lora_mode_widgets:
+            w.grid() if m in ("ties", "dare") else w.grid_remove()
 
+    def _format_changed(self):
+        f = self.fmt.get()
+        show = {"passthrough": f in ("keep", "fp8", "fp8_scaled", "int8_convrot"), "fp8": f == "fp8_scaled",
+                "int8": f in ("int8_convrot", "keep")}
+        for name, widgets in self.fmt_rows.items():
+            for w in widgets:
+                w.grid() if show[name] else w.grid_remove()
+
+    def _as_lora_changed(self):
+        if self.as_lora.get():
+            self.lora_out_frame.grid(row=5, column=0, columnspan=3, sticky="ew")
+        else:
+            self.lora_out_frame.grid_forget()
+
+    # ---- recipes
     def options(self) -> CkptMergeOptions:
         o = CkptMergeOptions(method=self.method.get(), output_format=self.fmt.get(), passthrough=self.passthrough.get(),
                              fp8_layer_set=self.fp8_set.get(), int8_clip=self.int8_clip.get(), keep_metadata=self.keep_meta.get(),
@@ -645,8 +858,7 @@ class CkptTab(ttk.Frame):
         A = CkptInput(self.A.get()) if self.A.get() else None
         B = self.B.to_ckpt_input()
         C = CkptInput(self.C.get()) if self.C.get() else None
-        loras = [i for i in (r.to_lora_input() for r in self.loras) if i is not None]
-        return A, B, C, loras
+        return A, B, C, self.lora_list.inputs()
 
     def to_recipe(self) -> dict:
         A, B, C, loras = self.inputs()
@@ -664,12 +876,7 @@ class CkptTab(ttk.Frame):
         else:
             self.B.clear()
         self.C.set(C.path if C else None)
-        loras = [LoraInput.from_dict(d) for d in r.get("loras", [])]
-        for row, inp in zip(self.loras, loras + [None] * 4):
-            if inp is None:
-                row.clear()
-            else:
-                row.load(inp.path, inp.strength, inp.shaping)
+        self.lora_list.load([LoraInput.from_dict(d) for d in r.get("loras", [])])
         o = CkptMergeOptions.from_dict(r.get("options"))
         if o.method in ADVANCED:
             self.advanced.set(True)
@@ -689,7 +896,13 @@ class CkptTab(ttk.Frame):
         self.lora_naming.set(o.lora_out.get("naming", "comfy"))
         self.keep_meta.set(o.keep_metadata)
         self.out.set(r.get("output"))
+        self._method_changed()
+        self._format_changed()
+        self._as_lora_changed()
+        if o.output_as_lora or o.passthrough != "official" or o.fp8_layer_set != "official" or o.int8_clip != "mse" or not o.keep_metadata:
+            self.adv.set_open(True)
 
+    # ---- actions
     def _check(self) -> bool:
         if not self.A.get():
             messagebox.showwarning("Checkpoint merge", "Choose checkpoint A.")
@@ -737,84 +950,85 @@ class CkptTab(ttk.Frame):
 
 # ============================================================================== app
 class MergeApp(tk.Tk):
-    def __init__(self, theme: str = "dark"):
+    def __init__(self, theme: str = "native"):
+        _enable_dpi_awareness()
         super().__init__()
         self.title(f"Krea 2 Merge Tool {__version__}")
-        self.minsize(1100, 760)
-        self.theme_name = theme
-        self.C = THEMES[theme]
         self.msg_queue: queue.Queue = queue.Queue()
         self.cancel_event = threading.Event()
         self.worker: threading.Thread | None = None
-        self.last_recipe: dict | None = None
         self._start = None
+        self._setup_scaling_and_fonts()
         self.style = ttk.Style(self)
-        try:
-            self.style.theme_use("clam")
-        except tk.TclError:
-            pass
-        self._apply_theme()
+        for name in ("vista", "winnative", "clam"):
+            try:
+                self.style.theme_use(name)
+                break
+            except tk.TclError:
+                continue
+        self._styles()
         self._build()
+        self.update_idletasks()
+        w, h = self.winfo_reqwidth(), self.winfo_reqheight()
+        self.minsize(min(w, self.winfo_screenwidth() - 80), min(h, self.winfo_screenheight() - 120))
         self.after(80, self._poll)
 
-    # ---- theme
-    def _apply_theme(self):
-        C, st = self.C, self.style
-        self.configure(bg=C["bg"])
-        st.configure(".", background=C["bg"], foreground=C["fg"], borderwidth=0, focuscolor=C["accent"])
-        st.configure("TFrame", background=C["bg"])
-        st.configure("Surface.TFrame", background=C["surface"])
-        st.configure("TLabel", background=C["bg"], foreground=C["fg"])
-        st.configure("Surface.TLabel", background=C["surface"], foreground=C["fg"])
-        st.configure("Muted.TLabel", background=C["surface"], foreground=C["fg_muted"])
-        st.configure("Card.TLabelframe", background=C["surface"], bordercolor=C["border"], relief="solid")
-        st.configure("Card.TLabelframe.Label", background=C["surface"], foreground=C["accent"])
-        st.configure("TButton", background=C["surface_2"], foreground=C["fg"], padding=(10, 5))
-        st.map("TButton", background=[("active", C["border"])])
-        st.configure("Accent.TButton", background=C["accent"], foreground=C["accent_fg"], padding=(14, 6))
-        st.map("Accent.TButton", background=[("active", C["accent_2"]), ("disabled", C["surface_2"])])
-        st.configure("Ghost.TButton", background=C["surface"], foreground=C["fg_muted"], padding=(6, 3))
-        st.map("Ghost.TButton", background=[("active", C["surface_2"])], foreground=[("active", C["fg"])])
-        st.configure("Ghost.TMenubutton", background=C["surface"], foreground=C["fg_muted"], padding=(6, 3))
-        st.configure("TEntry", fieldbackground=C["surface_2"], foreground=C["fg"], insertcolor=C["fg"])
-        st.configure("TCombobox", fieldbackground=C["surface_2"], foreground=C["fg"], background=C["surface_2"], arrowcolor=C["fg"])
-        st.configure("TCheckbutton", background=C["surface"], foreground=C["fg"])
-        st.configure("TRadiobutton", background=C["surface"], foreground=C["fg"])
-        st.configure("TScale", background=C["surface"], troughcolor=C["trough"])
-        st.configure("TNotebook", background=C["bg"], tabmargins=(4, 4, 0, 0))
-        st.configure("TNotebook.Tab", background=C["surface_2"], foreground=C["fg_muted"], padding=(14, 6))
-        st.map("TNotebook.Tab", background=[("selected", C["surface"])], foreground=[("selected", C["fg"])])
-        st.configure("Horizontal.TProgressbar", background=C["accent"], troughcolor=C["trough"])
-        self.option_add("*TCombobox*Listbox.background", C["surface_2"])
-        self.option_add("*TCombobox*Listbox.foreground", C["fg"])
+    def _setup_scaling_and_fonts(self):
+        try:
+            dpi = float(self.winfo_fpixels("1i"))
+            self.tk.call("tk", "scaling", dpi / 72.0)
+        except tk.TclError:
+            pass
+        family = "Segoe UI" if sys.platform == "win32" else tkfont.nametofont("TkDefaultFont").actual()["family"]
+        for name in ("TkDefaultFont", "TkTextFont", "TkMenuFont", "TkHeadingFont"):
+            try:
+                tkfont.nametofont(name).configure(family=family, size=10)
+            except tk.TclError:
+                pass
+        try:
+            tkfont.nametofont("TkFixedFont").configure(family="Consolas" if sys.platform == "win32" else "Courier", size=10)
+        except tk.TclError:
+            pass
 
-    # ---- layout
+    def _styles(self):
+        st = self.style
+        st.configure("Hint.TLabel", foreground="#5f6b7a")
+        st.configure("Link.TLabel", foreground="#1f4e9c")
+        st.configure("Accent.TButton", font=(tkfont.nametofont("TkDefaultFont").actual()["family"], 10, "bold"))
+        st.configure("TLabelframe.Label", foreground="#1f4e9c")
+        st.configure("TNotebook.Tab", padding=(14, 6))
+        st.configure("Toolbutton", padding=(4, 2))
+
     def _build(self):
         self.nb = ttk.Notebook(self)
-        self.nb.pack(fill="both", expand=True, padx=8, pady=(8, 4))
+        self.nb.pack(fill="both", expand=True, padx=10, pady=(10, 4))
         self.tab_lora = LoraMergeTab(self.nb, self)
         self.tab_extract = ExtractTab(self.nb, self)
         self.tab_ckpt = CkptTab(self.nb, self)
-        self.nb.add(self.tab_lora, text="  LoRA merge  ")
-        self.nb.add(self.tab_extract, text="  Extract  ")
-        self.nb.add(self.tab_ckpt, text="  Checkpoint merge / convert  ")
+        self.nb.add(self.tab_lora, text="LoRA merge")
+        self.nb.add(self.tab_extract, text="Extract LoRA")
+        self.nb.add(self.tab_ckpt, text="Checkpoint merge / convert")
 
-        bottom = ttk.Frame(self, style="TFrame")
-        bottom.pack(fill="both", padx=8, pady=(0, 8))
-        row = ttk.Frame(bottom, style="TFrame")
+        bottom = ttk.Frame(self, padding=(10, 4, 10, 10))
+        bottom.pack(fill="both")
+        row = ttk.Frame(bottom)
         row.pack(fill="x")
-        self.progress = ttk.Progressbar(row, style="Horizontal.TProgressbar", maximum=1000)
-        self.progress.pack(side="left", fill="x", expand=True)
-        self.status = ttk.Label(row, text="idle", style="TLabel")
+        self.progress = ttk.Progressbar(row, maximum=1000)
+        self.progress.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        self.status = ttk.Label(row, text="idle", width=36)
         self.status.pack(side="left", padx=8)
         self.gpu_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(row, text="GPU", variable=self.gpu_var).pack(side="left", padx=4)
+        ttk.Checkbutton(row, text="use GPU", variable=self.gpu_var).pack(side="left", padx=8)
         self.btn_cancel = ttk.Button(row, text="Cancel", command=self.cancel, state="disabled")
-        self.btn_cancel.pack(side="left")
-        ttk.Button(row, text="Clear log", style="Ghost.TButton", command=lambda: self.txt.delete("1.0", "end")).pack(side="left", padx=4)
-        self.txt = tk.Text(bottom, height=12, bg=self.C["log_bg"], fg=self.C["fg"], insertbackground=self.C["fg"],
-                           relief="flat", font=("Consolas", 9), wrap="none")
-        self.txt.pack(fill="both", expand=True, pady=(4, 0))
+        self.btn_cancel.pack(side="left", padx=4)
+        ttk.Button(row, text="Clear log", command=lambda: self.txt.delete("1.0", "end")).pack(side="left", padx=4)
+        logf = ttk.Frame(bottom)
+        logf.pack(fill="both", expand=True, pady=(6, 0))
+        self.txt = tk.Text(logf, height=10, wrap="none", font=tkfont.nametofont("TkFixedFont"), relief="solid", borderwidth=1)
+        sb = ttk.Scrollbar(logf, orient="vertical", command=self.txt.yview)
+        self.txt.configure(yscrollcommand=sb.set)
+        self.txt.pack(side="left", fill="both", expand=True)
+        sb.pack(side="left", fill="y")
 
     # ---- helpers
     def use_gpu(self) -> bool:
@@ -827,9 +1041,6 @@ class MergeApp(tk.Tk):
     def cancel(self):
         self.cancel_event.set()
         self.status.configure(text="cancelling...")
-
-    def current_tab(self):
-        return self.nb.nametowidget(self.nb.select())
 
     def save_recipe(self, tab):
         p = filedialog.asksaveasfilename(filetypes=JSON_FILES, defaultextension=".json")
@@ -855,7 +1066,8 @@ class MergeApp(tk.Tk):
         target = {"lora_merge": self.tab_lora, "extract": self.tab_extract, "ckpt_merge": self.tab_ckpt, "convert": self.tab_ckpt}[r["function"]]
         if r["function"] == "convert":
             r = {"function": "ckpt_merge", "A": {"file": r["inputs"][0]["file"]}, "loras": [],
-                 "options": {"output_format": r.get("output_format", "bf16"), "passthrough": r.get("passthrough", "official")},
+                 "options": {"output_format": r.get("output_format", "bf16"), "passthrough": r.get("passthrough", "official"),
+                             "int8_clip": r.get("int8_clip", "mse")},
                  "output": r.get("output")}
         target.from_recipe(r)
         self.nb.select(target)
@@ -899,7 +1111,7 @@ class MergeApp(tk.Tk):
                 if kind == "progress":
                     cur, total, name = payload
                     self.progress.configure(value=int(1000 * cur / max(total, 1)))
-                    self.status.configure(text=f"{cur}/{total} {name[:50]}")
+                    self.status.configure(text=f"{cur}/{total} {name[:40]}")
                 elif kind == "log":
                     self.log(payload)
                 elif kind == "done":
@@ -929,7 +1141,7 @@ class MergeApp(tk.Tk):
         self.btn_cancel.configure(state="disabled")
 
 
-def run_gui(theme: str = "dark") -> int:
+def run_gui(theme: str = "native") -> int:
     app = MergeApp(theme)
     app.mainloop()
     return 0
