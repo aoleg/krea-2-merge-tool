@@ -71,6 +71,17 @@ PARAM_HELP = {"density": "fraction of each change kept (TIES trim)", "lambda": "
               "p": "drop probability", "seed": "random seed", "beta": "0 = common parts, 1 = distinct parts", "gamma": "sharpness"}
 
 
+def _fmt_ranks(d: dict) -> str:
+    """{'blocks.attn': 12, ...} -> 'attn 12  ·  mlp 20  ·  ...' in the analysis order."""
+    if not d:
+        return ""
+    order = ("blocks.attn", "blocks.mlp", "blocks.mod_norm", "txtfusion", "projections", "other", "*")
+    names = {"blocks.attn": "attention", "blocks.mlp": "MLP", "blocks.mod_norm": "modulation", "txtfusion": "text fusion",
+             "projections": "projections", "other": "other", "*": "all"}
+    parts = [f"{names.get(g, g)} {d[g]}" for g in order if g in d] + [f"{g} {v}" for g, v in d.items() if g not in order]
+    return "per group ranks from the analysis:  " + "  \u00b7  ".join(parts)
+
+
 def _round_step(x: float) -> float:
     return round(round(float(x) / STEP) * STEP, 2)
 
@@ -459,8 +470,8 @@ class LoraMergeTab(ttk.Frame):
         self.rank_entry.pack(side="left")
         ttk.Radiobutton(rk, text="per group, from the analysis", variable=self.rank_mode, value="groups", command=self._rank_changed).pack(side="left", padx=(12, 2))
         self.group_ranks: dict = {}
-        self.group_lbl = ttk.Label(rk, text="", style="Hint.TLabel")
-        self.group_lbl.pack(side="left", padx=6)
+        self.group_lbl = ttk.Label(out, text="", style="Hint.TLabel")
+        self.group_lbl.grid(row=6, column=0, columnspan=3, sticky="w", padx=6)
 
         self.analysis_frame = ttk.Frame(out)
         ttk.Label(self.analysis_frame, text="energy target", width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
@@ -524,7 +535,7 @@ class LoraMergeTab(ttk.Frame):
         self.rank_mode.set(o.rank_mode)
         self.rank.set(str(o.rank or 32))
         self.group_ranks = dict(o.group_ranks)
-        self.group_lbl.configure(text=json.dumps(self.group_ranks) if self.group_ranks else "")
+        self.group_lbl.configure(text=_fmt_ranks(self.group_ranks))
         self.modules.set(o.modules)
         self.naming.set(o.naming)
         self.dtype.set(o.dtype)
@@ -545,7 +556,7 @@ class LoraMergeTab(ttk.Frame):
 
         def job(progress, cancel, log):
             from .lora_merge import analyze_lora_merge
-            rep = analyze_lora_merge(inputs, opts, self.app.use_gpu(), progress=progress)
+            rep = analyze_lora_merge(inputs, opts, self.app.use_gpu(), progress=progress, cancel=cancel)
             plan = rep.rank_plan(target, crit)
             return rep.text() + f"\n\nrank per group for {target:.3f} energy ({crit}): {plan}", plan
 
@@ -553,7 +564,9 @@ class LoraMergeTab(ttk.Frame):
             text, plan = res
             self.app.log(text)
             self.group_ranks = {g: int(r) for g, r in plan.items()}
-            self.group_lbl.configure(text=json.dumps(self.group_ranks))
+            self.group_lbl.configure(text=_fmt_ranks(self.group_ranks))
+            self.rank_mode.set("groups")
+            self._rank_changed()
         self.app.run_job("Analyzing LoRA merge", job, done)
 
     def plan(self):
@@ -602,8 +615,8 @@ class ExtractTab(ttk.Frame):
         self.use_groups = tk.BooleanVar(value=False)
         ttk.Checkbutton(rk, text="use the per group ranks from the analysis", variable=self.use_groups).pack(side="left", padx=12)
         self.group_ranks: dict = {}
-        self.group_lbl = ttk.Label(rk, text="", style="Hint.TLabel")
-        self.group_lbl.pack(side="left")
+        self.group_lbl = ttk.Label(opts, text="", style="Hint.TLabel")
+        self.group_lbl.grid(row=8, column=0, columnspan=3, sticky="w", padx=6)
         self.filter = _labeled(opts, 1, "modules", lambda p: ttk.Combobox(p, values=["all", "attn", "blocks", "custom"], state="readonly", width=12),
                                "all = every linear (264); attn = attention only (140); blocks = block linears (224); custom = regex")
         self.filter.set("all")
@@ -667,7 +680,7 @@ class ExtractTab(ttk.Frame):
         self.rank.set(str(o.rank))
         self.group_ranks = dict(o.group_ranks)
         self.use_groups.set(bool(o.group_ranks))
-        self.group_lbl.configure(text=json.dumps(self.group_ranks) if self.group_ranks else "")
+        self.group_lbl.configure(text=_fmt_ranks(self.group_ranks))
         self.filter.set(o.filter)
         self.include.set(o.include)
         self.exclude.set(o.exclude)
@@ -691,7 +704,7 @@ class ExtractTab(ttk.Frame):
 
         def job(progress, cancel, log):
             from .extract import analyze_extract
-            rep = analyze_extract(b, t, o, self.app.use_gpu(), progress=progress)
+            rep = analyze_extract(b, t, o, self.app.use_gpu(), progress=progress, cancel=cancel)
             plan = rep.rank_plan(target, crit)
             return rep.text() + f"\n\nrank per group for {target:.3f} energy ({crit}): {plan}", plan
 
@@ -699,7 +712,8 @@ class ExtractTab(ttk.Frame):
             text, plan = res
             self.app.log(text)
             self.group_ranks = {g: int(r) for g, r in plan.items()}
-            self.group_lbl.configure(text=json.dumps(self.group_ranks))
+            self.group_lbl.configure(text=_fmt_ranks(self.group_ranks))
+            self.use_groups.set(True)
         self.app.run_job("Analyzing extraction", job, done)
 
     def plan(self):
@@ -951,7 +965,7 @@ class CkptTab(ttk.Frame):
         if A is None or B is None:
             messagebox.showwarning("Report", "The pre merge report needs A and B.")
             return
-        self.app.run_job("Pre merge report", lambda p, c, l: __import__("k2merge.ckpt_merge", fromlist=["premerge_report"]).premerge_report(A, B, C, self.app.use_gpu(), progress=p), self.app.log)
+        self.app.run_job("Pre merge report", lambda p, c, l: __import__("k2merge.ckpt_merge", fromlist=["premerge_report"]).premerge_report(A, B, C, self.app.use_gpu(), progress=p, cancel=c), self.app.log)
 
     def plan(self):
         if not self._check():

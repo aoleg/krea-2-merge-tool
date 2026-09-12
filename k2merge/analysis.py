@@ -183,13 +183,16 @@ class AnalysisReport:
 
 
 def analyze_sources(sources: list, canon_list: list, names: dict, device, noise: dict | None = None,
-                    requested_rank: int | None = None, progress=None) -> AnalysisReport:
+                    requested_rank: int | None = None, progress=None, cancel=None) -> AnalysisReport:
     """sources: DeltaSource list. canon_list: modules to analyze. names: canon -> bare module name.
-    noise: canon -> expected noise energy (quantized inputs)."""
+    noise: canon -> expected noise energy (quantized inputs). cancel: callable, raises Cancelled when true."""
+    from .engine import Cancelled
     rep = AnalysisReport()
     noise = noise or {}
     total = len(canon_list)
     for i, c in enumerate(canon_list):
+        if cancel is not None and cancel():
+            raise Cancelled("cancelled by the user")
         if progress is not None:
             progress(i, total, names.get(c, c))
         contributing = [s for s in sources if c in s.modules()]

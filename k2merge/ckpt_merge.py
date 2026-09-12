@@ -355,7 +355,7 @@ def _write_as_lora(ctx: MergeContext, out_path: str, recipe: dict, touched: set,
 
 
 # ----------------------------------------------------------------------------- pre merge report
-def premerge_report(A: CkptInput, B: CkptInput, C: CkptInput | None, use_gpu=True, progress=None) -> str:
+def premerge_report(A: CkptInput, B: CkptInput, C: CkptInput | None, use_gpu=True, progress=None, cancel=None) -> str:
     """Per group norms of B - A and B - C, similarity histogram, tensors present in one input only."""
     device = pick_device(use_gpu)
     a, b = _Ckpt(A.path), _Ckpt(B.path)
@@ -368,6 +368,8 @@ def premerge_report(A: CkptInput, B: CkptInput, C: CkptInput | None, use_gpu=Tru
         keys = [k for k in a.reader.names if not a.fmt.is_consumed(k) and (a.reader.dtype(k) in FLOAT_TAGS or a.fmt.is_quantized(k))]
         only_a = [k for k in keys if b.key_for(k) is None]
         for i, k in enumerate(keys):
+            if cancel is not None and cancel():
+                raise Cancelled("cancelled by the user")
             if progress is not None:
                 progress(i, len(keys), k)
             bk = b.key_for(k)

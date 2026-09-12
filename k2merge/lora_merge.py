@@ -176,7 +176,7 @@ def select_modules(sources: list, mode: str) -> tuple[list, list]:
     return sorted(chosen), dropped
 
 
-def analyze_lora_merge(inputs: list[LoraInput], opts: LoraMergeOptions, use_gpu=True, progress=None) -> AnalysisReport:
+def analyze_lora_merge(inputs: list[LoraInput], opts: LoraMergeOptions, use_gpu=True, progress=None, cancel=None) -> AnalysisReport:
     device = pick_device(use_gpu)
     sources = open_sources(inputs, opts.average, opts.block_count)
     try:
@@ -184,7 +184,7 @@ def analyze_lora_merge(inputs: list[LoraInput], opts: LoraMergeOptions, use_gpu=
         names = module_names(sources, opts.checkpoint)
         for s in sources:
             s.module_names = names
-        rep = analyze_sources(sources, chosen, names, device, requested_rank=opts.rank, progress=progress)
+        rep = analyze_sources(sources, chosen, names, device, requested_rank=opts.rank, progress=progress, cancel=cancel)
         if dropped:
             rep.notes.append(f"{len(dropped)} module(s) not present in every input are dropped")
         return rep

@@ -110,9 +110,11 @@ def _selected_modules(fb: FileFormat, ft: FileFormat, opts: ExtractOptions):
     return out, skipped
 
 
-def _noise_map(fb: FileFormat, ft: FileFormat, mods, device) -> dict:
+def _noise_map(fb: FileFormat, ft: FileFormat, mods, device, cancel=None) -> dict:
     noise = {}
     for c, module, tk, bk, shape in mods:
+        if cancel is not None and cancel():
+            raise Cancelled("cancelled by the user")
         lt, lb = ft.layout_of(tk), fb.layout_of(bk)
         if lt == "plain" and lb == "plain":
             continue
@@ -121,16 +123,16 @@ def _noise_map(fb: FileFormat, ft: FileFormat, mods, device) -> dict:
     return noise
 
 
-def analyze_extract(base_path: str, target_path: str, opts: ExtractOptions, use_gpu=True, progress=None) -> AnalysisReport:
+def analyze_extract(base_path: str, target_path: str, opts: ExtractOptions, use_gpu=True, progress=None, cancel=None) -> AnalysisReport:
     device = pick_device(use_gpu)
     rb, rt, fb, ft = _open(base_path, target_path)
     try:
         mods, skipped = _selected_modules(fb, ft, opts)
         src = CheckpointDelta(ft, fb, weight=1.0, block_count=opts.block_count)
         names = {c: module for c, module, *_ in mods}
-        noise = _noise_map(fb, ft, mods, device)
+        noise = _noise_map(fb, ft, mods, device, cancel)
         rep = analyze_sources([src], [m[0] for m in mods], names, device, noise=noise,
-                              requested_rank=opts.rank, progress=progress)
+                              requested_rank=opts.rank, progress=progress, cancel=cancel)
         if skipped:
             rep.notes.append(f"{len(skipped)} tensor(s) skipped: " + ", ".join(f"{m} ({why})" for m, why in skipped[:5]))
         if noise:
