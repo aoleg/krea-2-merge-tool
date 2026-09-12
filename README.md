@@ -9,6 +9,10 @@ Merges, analyzes, extracts and converts Krea 2 diffusion models on Windows, with
 
 Every run is described by a recipe. The recipe is stored in the output file's metadata, can be reloaded into the GUI, and reproduces the file byte for byte.
 
+![Checkpoint merge tab, light theme](scr/light.png)
+
+![LoRA merge tab with block shaping and an analysis in the log, dark theme](scr/dark.png)
+
 ## Install and run
 
 1. Install Python 3.12 from python.org with "Add Python to PATH" and tcl/tk enabled.
