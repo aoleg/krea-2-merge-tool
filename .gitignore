@@ -11,3 +11,8 @@ samples/
 comfy-model-tools/
 !reference/phase8/*.log
 settings.json
+
+# Specifications and planning documents
+spectrum-analysis-spec.md
+working_specs.md
+development_plan.md
