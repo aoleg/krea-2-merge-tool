@@ -1060,8 +1060,8 @@ class MergeApp(tk.Tk):
         self.after(80, self._poll)
 
     def _setup_scaling_and_fonts(self):
-        """Fonts are in points: tk scaling = display DPI x the UI scale makes every font and control grow together.
-        Pixel paddings are scaled through px() and PAD."""
+        """Named fonts get pixel sizes = points x display DPI x the UI scale, so a rescale can reconfigure them live
+        (Tk caches point sized fonts by description and would keep the old size). Pixel paddings go through px() and PAD."""
         global _S
         self.scale_setting = self.scale_setting if self.scale_setting in SCALES else self.settings.get("scale", "auto")
         if self.scale_setting not in SCALES:
@@ -1069,20 +1069,95 @@ class MergeApp(tk.Tk):
         _S = self.ui_scale = ui_scale_factor(self.scale_setting)
         PAD.update(padx=px(6), pady=px(3))
         try:
-            dpi = float(self.winfo_fpixels("1i"))
-            self.tk.call("tk", "scaling", dpi / 72.0 * self.ui_scale)
+            self._dpi = float(self.winfo_fpixels("1i"))
         except tk.TclError:
-            pass
+            self._dpi = 96.0
+        self._apply_tk_scaling()
         family = "Segoe UI" if sys.platform == "win32" else tkfont.nametofont("TkDefaultFont").actual()["family"]
         for name in ("TkDefaultFont", "TkTextFont", "TkMenuFont", "TkHeadingFont"):
             try:
-                tkfont.nametofont(name).configure(family=family, size=10)
+                tkfont.nametofont(name).configure(family=family, size=self.font_px(10))
             except tk.TclError:
                 pass
         try:
-            tkfont.nametofont("TkFixedFont").configure(family="Consolas" if sys.platform == "win32" else "Courier", size=10)
+            tkfont.nametofont("TkFixedFont").configure(family="Consolas" if sys.platform == "win32" else "Courier", size=self.font_px(10))
         except tk.TclError:
             pass
+
+    def font_px(self, points: float) -> int:
+        """A Tk font size in pixels (negative by Tk convention) for a point size at the current DPI and UI scale."""
+        return -max(1, int(round(points * self._dpi / 72.0 * self.ui_scale)))
+
+    def _apply_tk_scaling(self):
+        try:
+            self.tk.call("tk", "scaling", self._dpi / 72.0 * self.ui_scale)
+        except tk.TclError:
+            pass
+
+    def rescale(self, factor: float):
+        """Change the UI scale of the running window: fonts, the paddings of every placed widget, canvases and wrap
+        widths are rescaled in place; the theme is reapplied for the style paddings and bold fonts."""
+        global _S
+        old = self.ui_scale
+        if abs(factor - old) < 1e-6:
+            return
+        _S = self.ui_scale = factor
+        PAD.update(padx=px(6), pady=px(3))
+        self._apply_tk_scaling()
+        for name in ("TkDefaultFont", "TkTextFont", "TkMenuFont", "TkHeadingFont", "TkFixedFont"):
+            try:
+                tkfont.nametofont(name).configure(size=self.font_px(10))
+            except tk.TclError:
+                pass
+
+        def re(v):
+            # a padding built as px(n) under the old scale: recover n (exact for scales >= 1), rescale it
+            if isinstance(v, (tuple, list)):
+                return tuple(re(x) for x in v)
+            try:
+                n = int(round(int(v) / old))
+            except (TypeError, ValueError):
+                return v
+            return int(round(n * factor))
+
+        def walk(w):
+            try:
+                mgr = w.winfo_manager()
+                if mgr == "pack":
+                    info = w.pack_info()
+                    w.pack_configure(padx=re(info.get("padx", 0)), pady=re(info.get("pady", 0)))
+                elif mgr == "grid":
+                    info = w.grid_info()
+                    w.grid_configure(padx=re(info.get("padx", 0)), pady=re(info.get("pady", 0)))
+            except tk.TclError:
+                pass
+            for opt in ("padding", "wraplength"):
+                try:
+                    v = w.cget(opt)
+                except tk.TclError:
+                    continue
+                if v not in ("", 0, (), None):
+                    try:
+                        w.configure({opt: re(v)})
+                    except tk.TclError:
+                        pass
+            if isinstance(w, tk.Canvas):
+                try:
+                    w.configure(width=re(w.cget("width")), height=re(w.cget("height")))
+                except tk.TclError:
+                    pass
+            if isinstance(w, ttk.Entry):        # Combobox and Spinbox too: re-setting the font recomputes the text layout
+                try:
+                    w.configure(font=w.cget("font") or "TkTextFont")
+                except tk.TclError:
+                    pass
+            for ch in w.winfo_children():
+                walk(ch)
+        walk(self)
+        self.apply_theme(self.theme_name)
+        self.update_idletasks()
+        w, h = self.winfo_reqwidth(), self.winfo_reqheight()
+        self.minsize(min(w, self.winfo_screenwidth() - 80), min(h, self.winfo_screenheight() - 120))
 
     # ---- theme
     def apply_theme(self, name: str):
@@ -1091,7 +1166,8 @@ class MergeApp(tk.Tk):
         C = self.C = THEMES[self.theme_name]
         st = self.style
         family = tkfont.nametofont("TkDefaultFont").actual()["family"]
-        bold = (family, 10, "bold")
+        bold = (family, self.font_px(10), "bold")
+        self.title_lbl.configure(font=(family, self.font_px(13), "bold"))
         if self.theme_name == "light":
             st.theme_use(self._native_theme)          # ttk keeps style settings per theme: nothing to undo
             self.configure(bg=C["bg"])
@@ -1184,7 +1260,7 @@ class MergeApp(tk.Tk):
         return f"Auto ({text_scale_factor() * 100:.0f}%)" if v == "auto" else f"{v}%"
 
     def _scale_chosen(self, _e=None):
-        """Remember the chosen UI scale; it takes effect at the next start (fonts are set once, before the layout)."""
+        """Apply and remember the chosen UI scale."""
         label = self.scale_var.get()
         chosen = next((v for v in SCALES if self._scale_label(v) == label), "auto")
         self.set_scale(chosen)
@@ -1194,10 +1270,7 @@ class MergeApp(tk.Tk):
         self.scale_var.set(self._scale_label(self.scale_setting))
         self.settings["scale"] = self.scale_setting
         save_settings(self.settings)
-        if abs(ui_scale_factor(self.scale_setting) - self.ui_scale) > 1e-6:
-            self.status.configure(text="UI scale applies at the next start")
-        else:
-            self.status.configure(text="idle")
+        self.rescale(ui_scale_factor(self.scale_setting))
 
     @staticmethod
     def _device_text() -> str:
@@ -1212,12 +1285,12 @@ class MergeApp(tk.Tk):
     def _build(self):
         self.header = ttk.Frame(self, padding=(px(10), px(8), px(10), 0))
         self.header.pack(fill="x")
-        ttk.Label(self.header, text="Krea 2 Merge Tool",
-                  font=(tkfont.nametofont("TkDefaultFont").actual()["family"], 13, "bold")).pack(side="left")
+        self.title_lbl = ttk.Label(self.header, text="Krea 2 Merge Tool")
+        self.title_lbl.pack(side="left")
         self.btn_theme = ttk.Button(self.header, text="Dark theme", command=self.toggle_theme)
         self.btn_theme.pack(side="right")
         self.scale_var = tk.StringVar(value=self._scale_label(self.scale_setting))
-        self.cb_scale = ttk.Combobox(self.header, textvariable=self.scale_var, state="readonly", width=9,
+        self.cb_scale = ttk.Combobox(self.header, textvariable=self.scale_var, state="readonly", width=13,
                                      values=[self._scale_label(v) for v in SCALES])
         self.cb_scale.pack(side="right", padx=(0, px(8)))
         self.cb_scale.bind("<<ComboboxSelected>>", self._scale_chosen)
