@@ -2,4 +2,5 @@
 # not from PyPI. Everything else comes from PyPI.
 safetensors>=0.4.5
 numpy>=1.26
+matplotlib>=3.8
 pytest>=8.0

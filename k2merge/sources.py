@@ -82,10 +82,30 @@ class CheckpointDelta:
     def low_rank(self, c: str, device=None):
         return None
 
-    def delta(self, c: str, device=None) -> torch.Tensor:
+    def keys_of(self, c: str) -> tuple[str, str]:
+        """(target key, base key) of module c."""
+        return self._mods[c]
+
+    def layouts(self, c: str) -> tuple[str, str]:
+        """(base layout, target layout) storage layouts of module c."""
+        tk, bk = self._mods[c]
+        return self.base.layout_of(bk), self.target.layout_of(tk)
+
+    def dtypes(self, c: str) -> tuple[str, str]:
+        """(base, target) stored dtype tags of module c."""
+        tk, bk = self._mods[c]
+        return self.base.reader.dtype(bk), self.target.reader.dtype(tk)
+
+    def read_pair(self, c: str, device=None) -> tuple[torch.Tensor, torch.Tensor]:
+        """(target, base) weights as fp32 on device, dequantized. One read each; the analysis derives
+        the delta, the base norm and the noise statistics from this single pair."""
         tk, bk = self._mods[c]
         t = self.target.read_fp32(tk, device=device)
         b = self.base.read_fp32(bk, device=device)
         if t.shape != b.shape:
             raise ValueError(f"{tk}: shape {list(t.shape)} in target, {list(b.shape)} in base")
+        return t, b
+
+    def delta(self, c: str, device=None) -> torch.Tensor:
+        t, b = self.read_pair(c, device)
         return (t - b) * self.factor(c)

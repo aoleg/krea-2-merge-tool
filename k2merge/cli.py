@@ -93,6 +93,7 @@ def build_parser() -> argparse.ArgumentParser:
     lm.add_argument("--naming", default="comfy", choices=["comfy", "kohya", "input"])
     lm.add_argument("--dtype", default="fp16", choices=["fp16", "bf16", "fp32"])
     lm.add_argument("--analyze", action="store_true", help="print the rank / energy report and exit")
+    _analysis_args(lm)
     lm.add_argument("--plan", action="store_true")
 
     ex = sub.add_parser("extract", help="extract a LoRA from two checkpoints")
@@ -106,7 +107,9 @@ def build_parser() -> argparse.ArgumentParser:
     ex.add_argument("--method", default="randomized", choices=["randomized", "full"])
     ex.add_argument("--naming", default="comfy", choices=["comfy", "kohya"])
     ex.add_argument("--dtype", default="fp16", choices=["fp16", "bf16", "fp32"])
-    ex.add_argument("--analyze", action="store_true")
+    ex.add_argument("--analyze", action="store_true", help="print the rank / energy report and exit")
+    _analysis_args(ex)
+    ex.add_argument("--null-spectrum", action="store_true", help="with --analyze: also store the spectrum of the modeled noise")
     ex.add_argument("--plan", action="store_true")
 
     cm = sub.add_parser("ckpt-merge", help="merge 1-3 checkpoints and 0-4 LoRAs, or convert")
@@ -127,7 +130,52 @@ def build_parser() -> argparse.ArgumentParser:
     cm.add_argument("--plan", action="store_true")
 
     m = sub.add_parser("methods", help="list the checkpoint merge methods and what the weight means")
+
+    sp = sub.add_parser("spectrum", help="show a saved analysis (.spectrum.json), or compare two")
+    sp.add_argument("analysis")
+    sp.add_argument("other", nargs="?")
+    sp.add_argument("--tensor", default=None, help="per tensor detail for this module name")
     return ap
+
+
+def _analysis_args(p):
+    p.add_argument("--spectrum", default=None, metavar="STEM", help="with --analyze: save STEM.spectrum.npz and STEM.spectrum.json")
+    p.add_argument("--energy", type=float, default=0.99, help="energy target of the printed rank plan (default 0.99)")
+    p.add_argument("--criterion", default="weighted", choices=["weighted", "per_module"])
+    p.add_argument("--raw-plan", action="store_true", help="rank plan from the raw spectrum instead of the denoised one")
+
+
+def _finish_analysis(rep, args) -> int:
+    print(rep.text())
+    denoised = not args.raw_plan and rep.has_noise_model
+    plan = rep.rank_plan(args.energy, args.criterion, denoised=denoised)
+    print(f"\nrank per group for {args.energy:.3f} energy ({args.criterion}, {'denoised' if denoised else 'raw'} spectrum): {plan}")
+    if args.spectrum:
+        npz, js = rep.save(args.spectrum)
+        print(f"saved {js} and {npz}")
+    return 0
+
+
+def _spectrum_command(args) -> int:
+    from .analysis import AnalysisReport
+    rep = AnalysisReport.load(args.analysis)
+    if args.other:
+        other = AnalysisReport.load(args.other)
+        print(rep.compare_text(other))
+        return 0
+    print(f"analysis: {rep.label}")
+    print(rep.text())
+    if args.tensor:
+        ms = next((m for m in rep.modules.values() if m.name == args.tensor), None)
+        if ms is None:
+            print(f"no tensor named {args.tensor}")
+            return 1
+        d = ms.to_dict()
+        for k in ("name", "group", "block", "shape", "layouts", "dtypes", "delta_fro", "base_fro", "rel_change", "zero_fraction",
+                  "noise_edge", "n_above_noise", "energy_above_noise", "effective_rank", "stable_rank", "rank_at_energy",
+                  "rank_at_energy_denoised", "resolved_by_svd"):
+            print(f"  {k:24s} {d[k]}")
+    return 0
 
 
 def main(argv=None) -> int:
@@ -146,6 +194,8 @@ def main(argv=None) -> int:
             for k in METHODS:
                 print(f"{k:17s} {METHOD_LABELS[k]}")
             return 0
+        if args.cmd == "spectrum":
+            return _spectrum_command(args)
         if args.cmd == "inspect":
             from .inspect_file import inspect_path
             for f in args.files:
@@ -179,8 +229,7 @@ def main(argv=None) -> int:
                 print(plan_lora_merge(inputs, opts))
                 return 0
             if args.analyze:
-                print(analyze_lora_merge(inputs, opts, use_gpu, progress=prog).text())
-                return 0
+                return _finish_analysis(analyze_lora_merge(inputs, opts, use_gpu, progress=prog), args)
             res = merge_loras(inputs, args.output, opts, use_gpu, progress=prog, log=log)
             print(f"\nwrote {res.path}: {res.modules} modules, rank {res.rank_min}-{res.rank_max}, "
                   f"energy kept >= {res.kept_min * 100:.2f}%, {len(res.dropped)} dropped")
@@ -194,8 +243,8 @@ def main(argv=None) -> int:
                 print(plan_extract(args.base, args.target, opts))
                 return 0
             if args.analyze:
-                print(analyze_extract(args.base, args.target, opts, use_gpu, progress=prog).text())
-                return 0
+                return _finish_analysis(analyze_extract(args.base, args.target, opts, use_gpu, progress=prog,
+                                                        null_spectrum=args.null_spectrum), args)
             res = extract_lora(args.base, args.target, args.output, opts, use_gpu, progress=prog, log=log)
             print(f"\nwrote {res.path}: {res.modules} modules, energy kept >= {res.kept_min * 100:.2f}%"
                   + (f", per group {({g: round(v, 4) for g, v in res.kept_by_group.items()})}" if res.kept_by_group else ""))

@@ -185,6 +185,9 @@ def analyze_lora_merge(inputs: list[LoraInput], opts: LoraMergeOptions, use_gpu=
         for s in sources:
             s.module_names = names
         rep = analyze_sources(sources, chosen, names, device, requested_rank=opts.rank, progress=progress, cancel=cancel)
+        rep.run = {"function": "lora_merge", "inputs": [i.to_dict() for i in inputs], "options": opts.to_dict(),
+                   "device": str(device), "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")}
+        rep.noise_model = {"applied": False, "text": "no noise model: LoRA spectra are exact"}
         if dropped:
             rep.notes.append(f"{len(dropped)} module(s) not present in every input are dropped")
         return rep

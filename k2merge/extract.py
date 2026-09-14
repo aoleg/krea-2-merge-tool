@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 import torch
 
 from . import TOOL_NAME, __version__
-from .analysis import AnalysisReport, analyze_sources, quantization_noise_energy
+from .analysis import FORMAT_NOISE, MANTISSA_BITS, AnalysisReport, OtherTensor, analyze_sources
 from .engine import Cancelled, pick_device
 from .formats import FileFormat
 from .keys import KREA2_BLOCKS, canon, ckpt_module, group_of, in_int8_recipe
@@ -110,37 +110,94 @@ def _selected_modules(fb: FileFormat, ft: FileFormat, opts: ExtractOptions):
     return out, skipped
 
 
-def _noise_map(fb: FileFormat, ft: FileFormat, mods, device, cancel=None) -> dict:
-    noise = {}
-    for c, module, tk, bk, shape in mods:
+def _describe_noise(fb: FileFormat, ft: FileFormat) -> dict:
+    """Run level description of the noise model: which term each input contributes."""
+    def term(ff: FileFormat) -> tuple[str, str]:
+        lc = ff.layout_counts()
+        if lc:
+            layout = max(lc, key=lc.get)
+            return layout, f"{layout}: {FORMAT_NOISE.get(layout, 0.0) * 100:.1f}% relative error spread over the elements"
+        dt = ff.dominant_float()
+        if dt in MANTISSA_BITS:
+            return f"plain {dt}", f"{dt} rounding, ulp^2 / 12 per element"
+        return f"plain {dt}", "fp32: no rounding term"
+    lb, tb = term(fb)
+    lt, tt = term(ft)
+    applied = not (tb.startswith("fp32") and tt.startswith("fp32"))
+    text = (f"noise model: base {lb} ({tb}); target {lt} ({tt}); edge = sqrt(variance) x (sqrt(m) + sqrt(n)), "
+            f"variance scaled by the share of changed elements" if applied
+            else "no noise model: both inputs are stored in fp32")
+    return {"applied": applied, "base": [lb, tb], "target": [lt, tt], "text": text}
+
+
+def _other_tensors(fb: FileFormat, ft: FileFormat, selected: set, device, progress=None, cancel=None) -> list:
+    """Norm statistics of every float tensor pair the extractor does not target: 1-D tensors, 2-D tensors that
+    are not weights, and weights excluded by the module filter. Never reads a tensor twice."""
+    from .formats import FormatError
+    base_keys = {}
+    for k in fb.reader.infos:
+        if k == "__metadata__" or fb.is_consumed(k):
+            continue
+        m, suf = ckpt_module(k)
+        base_keys[(canon(m), suf)] = k
+    todo = []
+    for k in ft.reader.names:
+        if k == "__metadata__" or ft.is_consumed(k):
+            continue
+        m, suf = ckpt_module(k)
+        c = canon(m)
+        shape = ft.reader.shape(k)
+        if suf == ".weight" and len(shape) == 2 and c in selected:
+            continue
+        if not ft.is_quantized(k) and ft.reader.dtype(k) not in ("BF16", "F16", "F32"):
+            continue
+        bk = base_keys.get((c, suf))
+        if bk is None or list(fb.reader.shape(bk)) != list(shape):
+            continue
+        kind = "1-D" if len(shape) != 2 else ("filtered" if suf == ".weight" else "not a weight")
+        todo.append((k, bk, m + suf, kind, shape))
+    out = []
+    total = len(todo)
+    for i, (tk, bk, name, kind, shape) in enumerate(todo):
         if cancel is not None and cancel():
             raise Cancelled("cancelled by the user")
-        lt, lb = ft.layout_of(tk), fb.layout_of(bk)
-        if lt == "plain" and lb == "plain":
+        if progress is not None:
+            progress(i, total, "other: " + name)
+        try:
+            t = ft.read_fp32(tk, device=device)
+            b = fb.read_fp32(bk, device=device)
+        except FormatError:
             continue
-        wn = fb.read_fp32(bk, device=device).norm().item()
-        noise[c] = quantization_noise_energy(wn, [lt, lb])
-    return noise
+        out.append(OtherTensor(name, tuple(shape), group_of(name), kind, float(b.norm().item()), float((t - b).norm().item())))
+        del t, b
+    return out
 
 
-def analyze_extract(base_path: str, target_path: str, opts: ExtractOptions, use_gpu=True, progress=None, cancel=None) -> AnalysisReport:
+def analyze_extract(base_path: str, target_path: str, opts: ExtractOptions, use_gpu=True, progress=None, cancel=None,
+                    null_spectrum: bool = False) -> AnalysisReport:
+    """The spectrum of every selected module delta plus the norms of every other tensor. Writes nothing."""
     device = pick_device(use_gpu)
     rb, rt, fb, ft = _open(base_path, target_path)
     try:
         mods, skipped = _selected_modules(fb, ft, opts)
         src = CheckpointDelta(ft, fb, weight=1.0, block_count=opts.block_count)
         names = {c: module for c, module, *_ in mods}
-        noise = _noise_map(fb, ft, mods, device, cancel)
-        rep = analyze_sources([src], [m[0] for m in mods], names, device, noise=noise,
-                              requested_rank=opts.rank, progress=progress, cancel=cancel)
+        rep = analyze_sources([src], [m[0] for m in mods], names, device, requested_rank=opts.rank,
+                              progress=progress, cancel=cancel, null_spectrum=null_spectrum)
+        rep.others = _other_tensors(fb, ft, set(names), device, progress, cancel)
+        rep.noise_model = _describe_noise(fb, ft)
+        rep.run = {"function": "extract", "base": os.path.abspath(base_path), "target": os.path.abspath(target_path),
+                   "base_format": fb.summary(), "target_format": ft.summary(), "options": opts.to_dict(),
+                   "device": str(device), "null_spectrum": bool(null_spectrum),
+                   "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")}
         if skipped:
             rep.notes.append(f"{len(skipped)} tensor(s) skipped: " + ", ".join(f"{m} ({why})" for m, why in skipped[:5]))
-        if noise:
-            rep.notes.append("quantized input: the noise floor is drawn from the storage format's expected error")
         return rep
     finally:
         rb.close()
         rt.close()
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
 
 
 def _svd(delta: torch.Tensor, r: int, opts: ExtractOptions):

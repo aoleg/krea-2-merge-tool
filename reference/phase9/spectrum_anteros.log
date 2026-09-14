@@ -1,0 +1,135 @@
+=== unaligned - raw (official)
+   target   per-module rank   weighted rank   denoised per-module   denoised weighted   driven by
+    90.0%              1916            1316                  1889                1280   blocks.18.attn.gate
+    95.0%              2590            1965                  2540                1886   blocks.18.attn.gate
+    99.0%              3859            3371                  3690                3085   blocks.18.attn.gate
+    99.5%              4272            3860                  4010                3430   blocks.18.attn.gate
+[blocks.mlp] 84 modules, delta norm 79.08, median change 1.98% of the weight, median effective rank 1801.3, stable rank 43.15, noise 0.2% of energy, directions above the edge <= 5946
+   target   per-module rank   weighted rank   denoised per-module   denoised weighted   driven by
+    90.0%              2768            2299                  2757                2279   blocks.15.mlp.down
+    95.0%              3604            3185                  3586                3147   blocks.15.mlp.down
+    99.0%              4935            4723                  4885                4617   blocks.15.mlp.down
+    99.5%              5277            5138                  5207                4997   blocks.15.mlp.gate
+[txtfusion] 33 modules, delta norm 16.35, median change 1.44% of the weight, median effective rank 319.0, stable rank 12.43, noise 1.0% of energy, directions above the edge <= 2332
+   target   per-module rank   weighted rank   denoised per-module   denoised weighted   driven by
+    90.0%              1043             630                  1020                 588   txtfusion.layerwise_blocks.0.mlp.gate
+    95.0%              1462             992                  1420                 900   txtfusion.layerwise_blocks.0.mlp.gate
+    99.0%              2134            1788                  2029                1568   txtfusion.layerwise_blocks.0.mlp.gate
+    99.5%              2297            2040                  2161                1777   txtfusion.layerwise_blocks.0.mlp.gate
+[projections] 7 modules, delta norm 18.38, median change 3.70% of the weight, median effective rank 141.6, stable rank 10.99
+   target   per-module rank   weighted rank   denoised per-module   denoised weighted   driven by
+    90.0%               776             238                   776                 238   txtmlp.3
+    95.0%              1336             443                  1336                 443   txtmlp.3
+    99.0%              2781            1354                  2781                1354   txtmlp.3
+    99.5%              3340            1902                  3340                1902   txtmlp.3
+energy kept by a uniform rank (median / minimum over the target tensors, raw and denoised)
+   rank     8    10.13% /   2.60%   denoised  10.16% /   2.61%
+   rank    16    14.52% /   4.33%   denoised  14.55% /   4.34%
+   rank    32    20.85% /   7.24%   denoised  20.93% /   7.25%
+   rank    64    30.26% /  12.01%   denoised  30.31% /  12.02%
+   rank   128    43.14% /  19.53%   denoised  43.33% /  19.54%
+   rank   256    58.15% /  30.69%   denoised  58.43% /  30.72%
+   rank   512    72.62% /  45.89%   denoised  73.05% /  45.93%
+   rank  1024    85.72% /  64.27%   denoised  86.23% /  64.33%
+energy outside the LoRA's reach: 0.02% of the delta energy in 166 non target tensor(s) (norms, modulation, biases, filtered weights), 0 unchanged
+   largest relative change: txtmlp.1.bias 3.47%, tmlp.0.bias 2.86%, tmlp.2.bias 2.77%, txtfusion.layerwise_blocks.1.attn.qknorm.knorm.scale 1.38%, txtfusion.layerwise_blocks.1.attn.qknorm.qnorm.scale 1.35%
+1 module(s) are smaller than twice the requested rank and clamp:
+   max rank    1  txtfusion.projector
+noise model: base plain BF16 (BF16 rounding, ulp^2 / 12 per element); target plain BF16 (BF16 rounding, ulp^2 / 12 per element); edge = sqrt(variance) x (sqrt(m) + sqrt(n)), variance scaled by the share of changed elements
+noise floor: the noise edge is drawn from the storage formats' rounding and quantization error; it is an upper bound where the fine tune left elements untouched
+
+rank per group for 0.950 energy (weighted, denoised spectrum): {'projections': 443, 'txtfusion': 900, 'blocks.attn': 1886, 'blocks.mlp': 3147}
+saved samples/scratchpad/anteros_unaligned_minus_raw.spectrum.json and samples/scratchpad/anteros_unaligned_minus_raw.spectrum.npz
+=== raw (anteros) - unaligned
+   target   per-module rank   weighted rank   denoised per-module   denoised weighted   driven by
+    90.0%              2955            2631                  2940                2619   blocks.8.attn.gate
+    95.0%              3588            3310                  3562                3290   blocks.8.attn.gate
+    99.0%              4631            4444                  4554                4381   blocks.8.attn.gate
+    99.5%              4940            4784                  4841                4687   blocks.8.attn.gate
+[blocks.mlp] 84 modules, delta norm 106.4, median change 2.62% of the weight, median effective rank 4041.8, stable rank 76.49, noise 0.0% of energy, directions above the edge <= 6144
+   target   per-module rank   weighted rank   denoised per-module   denoised weighted   driven by
+    90.0%              4111            3914                  4111                3914   blocks.8.mlp.gate
+    95.0%              4834            4662                  4834                4662   blocks.8.mlp.gate
+    99.0%              5747            5635                  5747                5634   blocks.8.mlp.gate
+    99.5%              5923            5837                  5923                5836   blocks.7.mlp.gate
+[txtfusion] 33 modules, delta norm 22.59, median change 2.00% of the weight, median effective rank 1419.0, stable rank 80.48, noise 0.1% of energy, directions above the edge <= 2560
+   target   per-module rank   weighted rank   denoised per-module   denoised weighted   driven by
+    90.0%              1786            1612                  1786                1607   txtfusion.layerwise_blocks.0.mlp.gate
+    95.0%              2075            1927                  2075                1919   txtfusion.layerwise_blocks.0.mlp.gate
+    99.0%              2422            2358                  2422                2356   txtfusion.layerwise_blocks.0.mlp.down
+    99.5%              2484            2446                  2484                2446   txtfusion.layerwise_blocks.0.mlp.down
+[projections] 7 modules, delta norm 16.9, median change 3.56% of the weight, median effective rank 305.3, stable rank 16.63
+   target   per-module rank   weighted rank   denoised per-module   denoised weighted   driven by
+    90.0%              4371            3816                  4371                3816   tproj.1
+    95.0%              5125            4716                  5125                4716   tproj.1
+    99.0%              5898            5772                  5898                5772   tproj.1
+    99.5%              6016            5947                  6016                5947   tproj.1
+energy kept by a uniform rank (median / minimum over the target tensors, raw and denoised)
+   rank     8     3.77% /   1.52%   denoised   3.78% /   1.52%
+   rank    16     5.57% /   2.39%   denoised   5.58% /   2.39%
+   rank    32     8.21% /   3.87%   denoised   8.22% /   3.87%
+   rank    64    11.90% /   6.34%   denoised  11.91% /   6.34%
+   rank   128    17.23% /  10.07%   denoised  17.24% /  10.07%
+   rank   256    25.75% /  15.72%   denoised  25.78% /  15.72%
+   rank   512    37.69% /  25.21%   denoised  37.72% /  25.22%
+   rank  1024    55.94% /  40.86%   denoised  56.01% /  40.88%
+energy outside the LoRA's reach: 0.04% of the delta energy in 166 non target tensor(s) (norms, modulation, biases, filtered weights), 0 unchanged
+   largest relative change: tmlp.0.bias 7.49%, txtmlp.1.bias 2.94%, tmlp.2.bias 2.46%, tproj.1.bias 1.46%, txtmlp.3.bias 1.39%
+1 module(s) are smaller than twice the requested rank and clamp:
+   max rank    1  txtfusion.projector
+noise model: base plain BF16 (BF16 rounding, ulp^2 / 12 per element); target plain BF16 (BF16 rounding, ulp^2 / 12 per element); edge = sqrt(variance) x (sqrt(m) + sqrt(n)), variance scaled by the share of changed elements
+noise floor: the noise edge is drawn from the storage formats' rounding and quantization error; it is an upper bound where the fine tune left elements untouched
+
+rank per group for 0.950 energy (weighted, denoised spectrum): {'projections': 4716, 'txtfusion': 1919, 'blocks.attn': 3290, 'blocks.mlp': 4662}
+saved samples/scratchpad/anteros_raw_minus_unaligned.spectrum.json and samples/scratchpad/anteros_raw_minus_unaligned.spectrum.npz
+=== compare
+A: anterosXXXKrea2_unaligned - raw
+B: anterosXXXKrea2_raw - anterosXXXKrea2_unaligned
+                                                            A                              B
+target tensors                                            264                            264
+delta norm (targets)                                     97.9                          129.8
+outside the LoRA's reach                                0.02%                          0.04%
+[blocks.attn] delta norm                                52.19                          68.86
+   median effective rank                                766.2                         2615.4
+   median stable rank                                   43.70                          77.38
+   median change of the weight                          1.86%                          2.39%
+   noise share                                           0.5%                           0.1%
+   weighted rank 90% raw                                 1316                           2631
+   weighted rank 90% denoised                            1280                           2619
+   weighted rank 99% raw                                 3371                           4444
+   weighted rank 99% denoised                            3085                           4381
+[blocks.mlp] delta norm                                 79.08                          106.4
+   median effective rank                               1801.3                         4041.8
+   median stable rank                                   43.15                          76.49
+   median change of the weight                          1.98%                          2.62%
+   noise share                                           0.2%                           0.0%
+   weighted rank 90% raw                                 2299                           3914
+   weighted rank 90% denoised                            2279                           3914
+   weighted rank 99% raw                                 4723                           5635
+   weighted rank 99% denoised                            4617                           5634
+[txtfusion] delta norm                                  16.35                          22.59
+   median effective rank                                319.0                         1419.0
+   median stable rank                                   12.43                          80.48
+   median change of the weight                          1.44%                          2.00%
+   noise share                                           1.0%                           0.1%
+   weighted rank 90% raw                                  630                           1612
+   weighted rank 90% denoised                             588                           1607
+   weighted rank 99% raw                                 1788                           2358
+   weighted rank 99% denoised                            1568                           2356
+[projections] delta norm                                18.38                           16.9
+   median effective rank                                141.6                          305.3
+   median stable rank                                   10.99                          16.63
+   median change of the weight                          3.70%                          3.56%
+   noise share                                           0.0%                           0.0%
+   weighted rank 90% raw                                  238                           3816
+   weighted rank 90% denoised                             238                           3816
+   weighted rank 99% raw                                 1354                           5772
+   weighted rank 99% denoised                            1354                           5772
+median energy at rank 8             10.1% raw, 10.2% denoised        3.8% raw, 3.8% denoised
+median energy at rank 16            14.5% raw, 14.6% denoised        5.6% raw, 5.6% denoised
+median energy at rank 32            20.9% raw, 20.9% denoised        8.2% raw, 8.2% denoised
+median energy at rank 64            30.3% raw, 30.3% denoised      11.9% raw, 11.9% denoised
+median energy at rank 128           43.1% raw, 43.3% denoised      17.2% raw, 17.2% denoised
+median energy at rank 256           58.2% raw, 58.4% denoised      25.8% raw, 25.8% denoised
+median energy at rank 512           72.6% raw, 73.0% denoised      37.7% raw, 37.7% denoised
+median energy at rank 1024          85.7% raw, 86.2% denoised      55.9% raw, 56.0% denoised

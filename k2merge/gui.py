@@ -28,6 +28,7 @@ from .formats import OUTPUT_FORMATS, PASSTHROUGH
 from .keys import KREA2_BLOCKS
 from .lora_merge import LoraInput, LoraMergeOptions
 from .methods import ADVANCED, METHODS, METHOD_LABELS, NEEDS_C
+from .spectrum_tab import SpectrumTab
 
 ST_FILES = [("safetensors", "*.safetensors"), ("all files", "*.*")]
 SETTINGS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "settings.json")
@@ -513,8 +514,10 @@ class LoraMergeTab(ttk.Frame):
         ttk.Combobox(self.analysis_frame, textvariable=self.target, values=["0.9", "0.95", "0.99", "0.995"], width=6).grid(row=0, column=1, sticky="w", **PAD)
         self.criterion = tk.StringVar(value="weighted")
         ttk.Combobox(self.analysis_frame, textvariable=self.criterion, values=["weighted", "per_module"], state="readonly", width=11).grid(row=0, column=2, sticky="w", **PAD)
-        ttk.Label(self.analysis_frame, text="Analyze picks one rank per group for this target; weighted = pooled energy, per_module = every module",
-                  style="Hint.TLabel").grid(row=0, column=3, sticky="w", padx=px(6))
+        self.denoised = tk.BooleanVar(value=True)
+        ttk.Checkbutton(self.analysis_frame, text="denoised", variable=self.denoised).grid(row=0, column=3, sticky="w", **PAD)
+        ttk.Label(self.analysis_frame, text="Analyze picks one rank per group for this target; weighted = pooled energy, per_module = every module; "
+                  "denoised = above the noise edge (LoRA spectra have none)", style="Hint.TLabel", wraplength=px(520), justify="left").grid(row=0, column=4, sticky="w", padx=px(6))
         self.analysis_frame.grid(row=1, column=0, columnspan=3, sticky="ew")
 
         self.modules = _labeled(out, 2, "modules", lambda p: ttk.Combobox(p, values=["intersection", "union"], state="readonly", width=12),
@@ -586,22 +589,25 @@ class LoraMergeTab(ttk.Frame):
         if not self._check():
             return
         inputs, opts = self.inputs(), self.options()
-        target, crit = float(self.target.get()), self.criterion.get()
+        target, crit, dn = float(self.target.get()), self.criterion.get(), bool(self.denoised.get())
 
         gpu = self.app.use_gpu()          # read the Tk variable on the main thread, not in the worker
         def job(progress, cancel, log):
             from .lora_merge import analyze_lora_merge
             rep = analyze_lora_merge(inputs, opts, gpu, progress=progress, cancel=cancel)
-            plan = rep.rank_plan(target, crit)
-            return rep.text() + f"\n\nrank per group for {target:.3f} energy ({crit}): {plan}", plan
+            use_dn = dn and rep.has_noise_model
+            plan = rep.rank_plan(target, crit, denoised=use_dn)
+            return rep.text() + f"\n\nrank per group for {target:.3f} energy ({crit}, {'denoised' if use_dn else 'raw'} spectrum): {plan}", plan, rep
 
         def done(res):
-            text, plan = res
+            text, plan, rep = res
             self.app.log(text)
             self.group_ranks = {g: int(r) for g, r in plan.items()}
             self.group_lbl.configure(text=_fmt_ranks(self.group_ranks))
             self.rank_mode.set("groups")
             self._rank_changed()
+            self.app.tab_spectrum.set_report(rep, {"uniform": opts.rank, "groups": dict(self.group_ranks)})
+            self.app.log("the spectra are on the Spectrum tab")
         self.app.run_job("Analyzing LoRA merge", job, done)
 
     def plan(self):
@@ -679,7 +685,13 @@ class ExtractTab(ttk.Frame):
         ttk.Combobox(an, textvariable=self.target_e, values=["0.9", "0.95", "0.99", "0.995"], width=6).grid(row=0, column=1, sticky="w", **PAD)
         self.criterion = tk.StringVar(value="weighted")
         ttk.Combobox(an, textvariable=self.criterion, values=["weighted", "per_module"], state="readonly", width=11).grid(row=0, column=2, sticky="w", **PAD)
-        ttk.Label(an, text="Analyze reports the rank needed per group and the quantization noise floor", style="Hint.TLabel").grid(row=0, column=3, sticky="w", padx=px(6))
+        self.denoised = tk.BooleanVar(value=True)
+        ttk.Checkbutton(an, text="denoised", variable=self.denoised).grid(row=0, column=3, sticky="w", **PAD)
+        self.null_spec = tk.BooleanVar(value=False)
+        ttk.Checkbutton(an, text="null spectrum", variable=self.null_spec).grid(row=0, column=4, sticky="w", **PAD)
+        ttk.Label(an, text="Analyze reports the rank needed per group with a noise edge from the storage formats; denoised = plan from the "
+                  "spectra above the edge; null spectrum = also compute the spectrum of the modeled noise (twice the SVD time)",
+                  style="Hint.TLabel", wraplength=px(420), justify="left").grid(row=0, column=5, sticky="w", padx=px(6))
         self.out = FileSlot(opts, app, "output", save=True)
         self.out.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(px(6), 0))
         opts.columnconfigure(2, weight=1)
@@ -736,21 +748,24 @@ class ExtractTab(ttk.Frame):
         if not self._check():
             return
         b, t, o = self.base.get(), self.target.get(), self.options()
-        target, crit = float(self.target_e.get()), self.criterion.get()
+        target, crit, dn, null = float(self.target_e.get()), self.criterion.get(), bool(self.denoised.get()), bool(self.null_spec.get())
 
         gpu = self.app.use_gpu()          # read the Tk variable on the main thread, not in the worker
         def job(progress, cancel, log):
             from .extract import analyze_extract
-            rep = analyze_extract(b, t, o, gpu, progress=progress, cancel=cancel)
-            plan = rep.rank_plan(target, crit)
-            return rep.text() + f"\n\nrank per group for {target:.3f} energy ({crit}): {plan}", plan
+            rep = analyze_extract(b, t, o, gpu, progress=progress, cancel=cancel, null_spectrum=null)
+            use_dn = dn and rep.has_noise_model
+            plan = rep.rank_plan(target, crit, denoised=use_dn)
+            return rep.text() + f"\n\nrank per group for {target:.3f} energy ({crit}, {'denoised' if use_dn else 'raw'} spectrum): {plan}", plan, rep
 
         def done(res):
-            text, plan = res
+            text, plan, rep = res
             self.app.log(text)
             self.group_ranks = {g: int(r) for g, r in plan.items()}
             self.group_lbl.configure(text=_fmt_ranks(self.group_ranks))
             self.use_groups.set(True)
+            self.app.tab_spectrum.set_report(rep, {"uniform": o.rank, "groups": dict(self.group_ranks)})
+            self.app.log("the spectra are on the Spectrum tab")
         self.app.run_job("Analyzing extraction", job, done)
 
     def plan(self):
@@ -1182,6 +1197,7 @@ class MergeApp(tk.Tk):
             st.configure("Link.TLabel", foreground=C["link"])
             st.configure("Accent.TButton", font=bold)
             st.configure("TNotebook.Tab", padding=(px(14), px(6)))
+            st.configure("Treeview", rowheight=abs(self.font_px(10)) + px(8))
             self.option_add("*TCombobox*Listbox.background", "#ffffff")
             self.option_add("*TCombobox*Listbox.foreground", "#000000")
         else:
@@ -1221,6 +1237,11 @@ class MergeApp(tk.Tk):
             st.configure("TNotebook.Tab", background=C["surface_2"], foreground=C["fg_muted"], padding=(px(14), px(6)), bordercolor=C["border"])
             st.map("TNotebook.Tab", background=[("selected", C["surface"])], foreground=[("selected", C["fg"])])
             st.configure("TScrollbar", background=C["surface_2"], troughcolor=C["bg"], bordercolor=C["border"], arrowcolor=C["fg"])
+            st.configure("Treeview", background=C["surface_2"], fieldbackground=C["surface_2"], foreground=C["fg"], bordercolor=C["border"],
+                         rowheight=abs(self.font_px(10)) + px(8))
+            st.configure("Treeview.Heading", background=C["surface"], foreground=C["fg"], bordercolor=C["border"])
+            st.map("Treeview", background=[("selected", C["accent"])], foreground=[("selected", C["accent_fg"])])
+            st.map("Treeview.Heading", background=[("active", C["border"])])
             self.option_add("*TCombobox*Listbox.background", C["surface_2"])
             self.option_add("*TCombobox*Listbox.foreground", C["fg"])
             self.option_add("*TCombobox*Listbox.selectBackground", C["accent"])
@@ -1307,9 +1328,12 @@ class MergeApp(tk.Tk):
         self.tab_lora = LoraMergeTab(self.nb, self)
         self.tab_extract = ExtractTab(self.nb, self)
         self.tab_ckpt = CkptTab(self.nb, self)
+        self.tab_spectrum = SpectrumTab(self.nb, self)
+        self.themed.append(self.tab_spectrum)
         self.nb.add(self.tab_lora, text="LoRA merge")
         self.nb.add(self.tab_extract, text="Extract LoRA")
         self.nb.add(self.tab_ckpt, text="Checkpoint merge / convert")
+        self.nb.add(self.tab_spectrum, text="Spectrum")
 
         bottom = ttk.Frame(self, padding=(px(10), px(4), px(10), px(10)))
         bottom.pack(fill="both")

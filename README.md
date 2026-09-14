@@ -3,7 +3,7 @@
 Merges, analyzes, extracts and converts Krea 2 diffusion models on Windows, with a GUI and a CLI.
 
 - **LoRA merge**: several LoRA or LoKr files into one LoRA, exact when the inputs are ordinary LoRAs, with per LoRA strength and block shaping.
-- **Analysis**: the rank needed and the energy retained, per layer group, with a quantization noise floor.
+- **Analysis**: the singular value spectrum of every weight delta, the rank needed and the energy retained per layer group, a noise edge from the storage formats, and a Spectrum tab that plots it all and compares two analyses.
 - **Extract**: a LoRA from the difference between two checkpoints in any storage format.
 - **Checkpoint merge and convert**: one to three checkpoints and up to four LoRAs, nine merge methods, output in fp16, bf16, fp32, fp8, fp8 scaled or int8 convrot in the exact layout of the official Krea 2 files, or the result written as a LoRA.
 
@@ -51,6 +51,18 @@ Shaping of a checkpoint applies to the second checkpoint only. It scales that ch
 
 Timestep scheduling cannot be baked into a file and is not offered.
 
+## Spectrum analysis
+
+Analyze on the LoRA merge tab and on the Extract tab computes the full singular value spectrum of every module delta, one module at a time on the GPU, without writing anything. The log gets the report; the Spectrum tab gets the plots.
+
+Per tensor: the singular values, the delta norm and its size relative to the base weight, the rank needed for 50 to 99.5 percent of the energy, the effective rank (the exponential of the entropy of the normalized squared singular values), the stable rank (delta energy over the largest squared singular value), the share of elements that did not change, the noise edge, the number of directions above it, and the ranks needed on the denoised spectrum. Per group: the same two rank criteria as before, raw and denoised. Overall: the energy a uniform rank of 8 to 1024 keeps, as the median and the minimum over the tensors, and the energy that sits outside the LoRA's reach in the norms, the modulation vectors and the biases, which no LoRA rank can carry.
+
+The noise model. Two bf16 files differ by rounding noise even where the fine tune changed little. Each input contributes a per element variance from its storage layout: bf16 or fp16 rounding (`ulp^2 / 12`, with the step taken from the base weight's magnitude), the measured relative error of fp8 (4.5 percent) or int8 convrot (1.1 percent) spread over the elements, nothing for fp32. The noise edge is the largest singular value a matrix of that noise alone would have, `sqrt(variance) x (sqrt(m) + sqrt(n))`. Singular values below it cannot be told from noise, and the denoised ranks count only the directions above it. Elements whose delta is exactly zero round identically in both files and carry no noise, so the variance is scaled by the share of changed elements. The model remains an upper bound where an element changed by less than half a step and rounded to the same value anyway. An optional null spectrum (twice the decomposition time) computes the spectrum of the modeled noise for an overlay.
+
+The Spectrum tab has four views: one tensor's spectrum with the noise edge, the configured rank and the cumulative energy raw and denoised; every tensor's cumulative energy with the median and the candidate ranks; a layer map of the eight linear leaves against the 28 blocks, with a second map for the norms and the modulation vectors and a table of the tensors outside the blocks, where a click opens the tensor; and a comparison of two saved analyses (median energy curves and histograms of effective rank, stable rank and relative change). Save analysis writes a pair `NAME.spectrum.npz` (the singular values) and `NAME.spectrum.json` (everything else); Load analysis and Load comparison read them back; Export writes a PNG of the figure or a CSV of the per tensor summary. The plots need matplotlib, which `install.bat` installs; without it the tab shows the tables.
+
+What to look for: a few large singular values followed by a flat tail mean a low intrinsic rank, and truncating at the knee loses little. A slow decay with no knee means the change is diffuse, and any small rank drops real signal. If most of the raw energy sits below the noise edge, a rank estimate in the thousands was mostly noise; if the tail sits far above the edge, the diffuse change is real and denoising will not rescue a small rank. Stable rank near 1 with a high effective rank means one dominant direction plus a diffuse cloud. A large share of energy outside the LoRA's reach means extraction cannot reproduce the fine tune and a checkpoint merge is the right tool. The same delta norm with a flatter spectrum in one of two runs means that run changed the weights more diffusely.
+
 ## Checkpoint merge methods and what the weight means
 
 A is the primary checkpoint and always has weight 1. B is the secondary with weight w. C is the optional reference, the common ancestor of A and B, usually the official Turbo file.
@@ -90,6 +102,14 @@ run.bat extract krea2_turbo_bf16.safetensors finetune.safetensors -o finetune_lo
 
 ```bash
 run.bat ckpt-merge -A base.safetensors -B "finetune.safetensors|1|STYLE:Isolate:1.0@0" -C krea2_turbo_bf16.safetensors -o style_only.safetensors --as-lora 32
+```
+
+```bash
+run.bat extract krea2_raw_bf16.safetensors finetune.safetensors -o unused.safetensors --analyze --spectrum finetune_vs_raw --energy 0.95
+```
+
+```bash
+run.bat spectrum finetune_vs_raw.spectrum.json other_run.spectrum.json
 ```
 
 ```bash
