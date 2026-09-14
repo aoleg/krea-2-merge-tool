@@ -63,6 +63,8 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--version", action="version", version=__version__)
     ap.add_argument("--gui", action="store_true", help="start the GUI (default when no command is given)")
     ap.add_argument("--theme", default=None, choices=["light", "dark"], help="GUI theme (default: the last one used)")
+    ap.add_argument("--scale", default=None, choices=["auto", "100", "125", "150", "175", "200"],
+                    help="GUI scale in percent; auto follows Windows text size (default: the last one used)")
     ap.add_argument("--cpu", action="store_true", help="force CPU")
     sub = ap.add_subparsers(dest="cmd")
 
@@ -135,7 +137,7 @@ def main(argv=None) -> int:
 
     if args.cmd is None or args.gui:
         from .gui import run_gui
-        return run_gui(theme=args.theme)
+        return run_gui(theme=args.theme, scale=args.scale)
 
     prog = _progress_printer()
     log = lambda s: print("\n" + s)  # noqa: E731
