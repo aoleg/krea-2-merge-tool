@@ -93,7 +93,7 @@ def ui_scale_factor(setting: str | None) -> float:
         return max(0.5, min(3.0, int(setting) / 100.0))
     except (TypeError, ValueError):
         return text_scale_factor()
-LABEL_W = 11                          # width of the label column, in characters
+LABEL_W = 13                          # width of the label column, in characters
 METHOD_PARAMS = {                     # parameters shown per method
     "ties": ("density", "lambda"),
     "dare": ("p", "seed", "lambda", "dare_ties", "density"),
@@ -305,6 +305,7 @@ class ShapingRow(ttk.LabelFrame):
                                highlightbackground=app.C["border"], bg=app.C["canvas"])
         app.themed.append(self)
         self.curve.grid(row=3, column=1, columnspan=2, sticky="ew", **PAD)
+        self.curve.bind("<Configure>", lambda _e: self.draw_curve())    # redraw at the real width (resize, rescale, recipe before mapping)
         self.info = ttk.Label(self.detail, text="", style="Hint.TLabel")
         self.info.grid(row=3, column=3, sticky="w")
         if kind == "ckpt":
@@ -372,8 +373,8 @@ class ShapingRow(ttk.LabelFrame):
             f = self.shaping().factors(KREA2_BLOCKS)
         except ValueError:
             return
-        w = max(int(c.winfo_width()), 280)
-        h = 40
+        w = int(c.winfo_width()) if c.winfo_width() > 1 else px(280)
+        h = int(c.winfo_height()) if c.winfo_height() > 1 else px(40)
         bw = w / len(f)
         C = self.app.C
         c.create_line(0, h - h / 3, w, h - h / 3, fill=C["border"])
@@ -587,9 +588,10 @@ class LoraMergeTab(ttk.Frame):
         inputs, opts = self.inputs(), self.options()
         target, crit = float(self.target.get()), self.criterion.get()
 
+        gpu = self.app.use_gpu()          # read the Tk variable on the main thread, not in the worker
         def job(progress, cancel, log):
             from .lora_merge import analyze_lora_merge
-            rep = analyze_lora_merge(inputs, opts, self.app.use_gpu(), progress=progress, cancel=cancel)
+            rep = analyze_lora_merge(inputs, opts, gpu, progress=progress, cancel=cancel)
             plan = rep.rank_plan(target, crit)
             return rep.text() + f"\n\nrank per group for {target:.3f} energy ({crit}): {plan}", plan
 
@@ -617,9 +619,10 @@ class LoraMergeTab(ttk.Frame):
             return
         inputs, opts = self.inputs(), self.options()
 
+        gpu = self.app.use_gpu()          # read the Tk variable on the main thread, not in the worker
         def job(progress, cancel, log):
             from .lora_merge import merge_loras
-            return merge_loras(inputs, out, opts, self.app.use_gpu(), progress, cancel, log)
+            return merge_loras(inputs, out, opts, gpu, progress, cancel, log)
 
         def done(res):
             self.app.log(f"wrote {res.path}: {res.modules} modules, rank {res.rank_min}-{res.rank_max}, "
@@ -735,9 +738,10 @@ class ExtractTab(ttk.Frame):
         b, t, o = self.base.get(), self.target.get(), self.options()
         target, crit = float(self.target_e.get()), self.criterion.get()
 
+        gpu = self.app.use_gpu()          # read the Tk variable on the main thread, not in the worker
         def job(progress, cancel, log):
             from .extract import analyze_extract
-            rep = analyze_extract(b, t, o, self.app.use_gpu(), progress=progress, cancel=cancel)
+            rep = analyze_extract(b, t, o, gpu, progress=progress, cancel=cancel)
             plan = rep.rank_plan(target, crit)
             return rep.text() + f"\n\nrank per group for {target:.3f} energy ({crit}): {plan}", plan
 
@@ -764,9 +768,10 @@ class ExtractTab(ttk.Frame):
             return
         b, t, o = self.base.get(), self.target.get(), self.options()
 
+        gpu = self.app.use_gpu()          # read the Tk variable on the main thread, not in the worker
         def job(progress, cancel, log):
             from .extract import extract_lora
-            return extract_lora(b, t, out, o, self.app.use_gpu(), progress, cancel, log)
+            return extract_lora(b, t, out, o, gpu, progress, cancel, log)
 
         def done(res):
             self.app.log(f"wrote {res.path}: {res.modules} modules, energy kept >= {res.kept_min * 100:.2f}%"
@@ -998,7 +1003,8 @@ class CkptTab(ttk.Frame):
         if A is None or B is None:
             messagebox.showwarning("Report", "The pre merge report needs A and B.")
             return
-        self.app.run_job("Pre merge report", lambda p, c, l: __import__("k2merge.ckpt_merge", fromlist=["premerge_report"]).premerge_report(A, B, C, self.app.use_gpu(), progress=p, cancel=c), self.app.log)
+        gpu = self.app.use_gpu()
+        self.app.run_job("Pre merge report", lambda p, c, l: __import__("k2merge.ckpt_merge", fromlist=["premerge_report"]).premerge_report(A, B, C, gpu, progress=p, cancel=c), self.app.log)
 
     def plan(self):
         if not self._check():
