@@ -104,6 +104,12 @@ A is the primary checkpoint and always has weight 1. B is the secondary with wei
 
 Vectors from (under More output options): the norm scales, modulation vectors and biases, every tensor that is not a 2-D weight, are merged like the rest by default. The option copies them from A, B or C instead. Use C to put an official file's vectors back after a fine tune or a third party de-Turbo that only touched the linears, or B at weight 0 to swap the vectors of one file for another's and change nothing else. Their share of a change is small (about 0.02 percent of the official distillation's energy), so expect a subtle effect.
 
+### An example: dialing a donor into a fine tune
+
+![Face crops of five seeds across Lustify, Anteros Unaligned and three merges at Lustify weights 1.0, 0.7 and 0.4](scr/merge_ladder_faces.jpg)
+
+The same prompt ("a woman in a closed 1950s swimsuit is posing on a beach"), five seeds across, five models down: Lustify, Anteros Unaligned, and three add difference merges built as Anteros + w (Lustify - official Raw) plus the Kroma extract LoRA, with w at 1.0, 0.7 and 0.4 (the last with a STYLE Suppress shaping on Lustify and the LoRA at 0.7). Both fine tunes on their own render the period look: set curls, lipstick, pinup lighting. At w 1.0 the merge keeps the layouts of the official Raw but the faces turn present-day and the styling is gone; at 0.7 the same faces gain some of the grooming back; at 0.4 the period look returns on every seed and two seeds switch to Anteros' own compositions. Two things to take from it: stacking two realism fine tunes at full weight overshoots a style cue that each of them follows alone, so the equal contribution weight the advisor proposes is a ceiling rather than a default; and a seed's layout flips between the two parents at a threshold rather than sliding, so a sweep needs at least three points to see where that threshold sits.
+
 ## Command line
 
 ```bash
