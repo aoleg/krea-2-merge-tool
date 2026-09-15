@@ -16,7 +16,7 @@ import torch
 
 from . import TOOL_NAME, __version__
 from .analysis import FORMAT_NOISE, MANTISSA_BITS, AnalysisReport, OtherTensor, analyze_sources
-from .engine import Cancelled, pick_device
+from .engine import Cancelled, pick_device, recipe_for_metadata
 from .formats import FileFormat
 from .keys import KREA2_BLOCKS, canon, ckpt_module, group_of, in_int8_recipe
 from .lora_merge import DTYPE_TAG, DTYPE_TORCH, output_keys
@@ -241,7 +241,7 @@ def extract_lora(base_path: str, target_path: str, out_path: str, opts: ExtractO
             meta.update({k: str(v) for k, v in rt.metadata.items() if k != "_quantization_metadata"})
         recipe = {"function": "extract", "base": os.path.basename(base_path), "target": os.path.basename(target_path),
                   "options": opts.to_dict()}
-        meta.update({"merge_tool": f"{TOOL_NAME} {__version__}", "merge_recipe": json.dumps(recipe, separators=(",", ":"))})
+        meta.update({"merge_tool": f"{TOOL_NAME} {__version__}", "merge_recipe": json.dumps(recipe_for_metadata(recipe), separators=(",", ":"))})
         tag, tdt = DTYPE_TAG[opts.dtype], DTYPE_TORCH[opts.dtype]
         writer = StreamWriter(out_path, meta)
         plan = []

@@ -1389,7 +1389,7 @@ class MergeApp(tk.Tk):
         p = filedialog.askopenfilename(filetypes=JSON_FILES + [("safetensors with recipe", "*.safetensors")])
         if not p:
             return
-        from .recipe import load_recipe, recipe_from_file_metadata
+        from .recipe import load_recipe, recipe_from_file_metadata, resolve_recipe_paths
         try:
             r = recipe_from_file_metadata(p) if p.lower().endswith(".safetensors") else load_recipe(p)
         except Exception as e:  # noqa: BLE001
@@ -1398,6 +1398,7 @@ class MergeApp(tk.Tk):
         if r is None:
             messagebox.showinfo("Recipe", "This file carries no recipe.")
             return
+        r = resolve_recipe_paths(r, os.path.dirname(os.path.abspath(p)))   # stored recipes hold file names only
         target = {"lora_merge": self.tab_lora, "extract": self.tab_extract, "ckpt_merge": self.tab_ckpt, "convert": self.tab_ckpt}[r["function"]]
         if r["function"] == "convert":
             r = {"function": "ckpt_merge", "A": {"file": r["inputs"][0]["file"]}, "loras": [],

@@ -6,7 +6,9 @@ Schema (function decides the rest):
   {"function": "ckpt_merge", "A": CkptInput, "B": CkptInput|null, "C": CkptInput|null,
    "loras": [LoraInput...], "options": CkptMergeOptions, "output": path}
   {"function": "convert", "inputs": [{"file": path}], "output_format": ..., "passthrough": ..., "output": path}
-The same document is written into the output's __metadata__["merge_recipe"] (without "output").
+The same document is written into the output's __metadata__["merge_recipe"], without "output" and with every path
+reduced to its file name (engine.recipe_for_metadata); run_recipe and resolve_recipe_paths find those names next to
+the file they came from.
 """
 from __future__ import annotations
 
@@ -44,6 +46,19 @@ def recipe_from_file_metadata(path: str) -> dict | None:
     r = json.loads(raw)
     validate(r)
     return r
+
+
+def resolve_recipe_paths(r: dict, base_dir: str | None) -> dict:
+    """A copy of the recipe with every relative path that exists under base_dir made absolute (for recipes read
+    back from a produced file, whose paths are file names only)."""
+    def walk(v):
+        if isinstance(v, dict):
+            return {k: (_resolve(x, base_dir) if k in ("file", "base", "target") and isinstance(x, str) and not x.startswith("@") else walk(x))
+                    for k, x in v.items()}
+        if isinstance(v, list):
+            return [walk(x) for x in v]
+        return v
+    return walk(r)
 
 
 def validate(r: dict) -> None:

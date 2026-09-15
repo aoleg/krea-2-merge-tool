@@ -16,7 +16,7 @@ import torch
 from . import methods
 from .analysis import AnalysisReport, analyze_sources, quantization_noise_energy
 from .blocks import Shaping
-from .engine import (Cancelled, RunResult, build_metadata, execute_plan, pick_device,
+from .engine import (Cancelled, RunResult, build_metadata, execute_plan, pick_device, recipe_for_metadata,
                      plan_from_primary)
 from .extract import ExtractOptions, _svd
 from .formats import FLOAT_TAGS, FileFormat, FormatError
@@ -352,7 +352,7 @@ def _write_as_lora(ctx: MergeContext, out_path: str, recipe: dict, touched: set,
     if not mods:
         raise FormatError("nothing to extract: no 2-D weight is changed by this merge")
     from . import TOOL_NAME, __version__
-    meta = {"merge_tool": f"{TOOL_NAME} {__version__}", "merge_recipe": json.dumps(recipe, separators=(",", ":"))}
+    meta = {"merge_tool": f"{TOOL_NAME} {__version__}", "merge_recipe": json.dumps(recipe_for_metadata(recipe), separators=(",", ":"))}
     tag, tdt = DTYPE_TAG[eo.dtype], DTYPE_TORCH[eo.dtype]
     writer = StreamWriter(out_path, meta)
     plan, clamped = [], []

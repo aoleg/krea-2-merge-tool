@@ -164,6 +164,25 @@ def plan_from_primary(primary: FileFormat, out_format: str, passthrough: str = "
 
 
 # ----------------------------------------------------------------------------- execution
+PATH_KEYS = ("file", "base", "target")   # recipe fields that hold a path
+
+
+def recipe_for_metadata(recipe: dict | None) -> dict | None:
+    """The recipe as written into an output file: every path reduced to its file name (a published file
+    must not carry the author's folders), the output path dropped, chain references ('@prev') kept."""
+    if recipe is None:
+        return None
+
+    def walk(v):
+        if isinstance(v, dict):
+            return {k: (os.path.basename(x) if k in PATH_KEYS and isinstance(x, str) and not x.startswith("@") else walk(x))
+                    for k, x in v.items() if k != "output"}
+        if isinstance(v, list):
+            return [walk(x) for x in v]
+        return v
+    return walk(recipe)
+
+
 def build_metadata(plan: Plan, base_metadata: dict | None, recipe: dict | None, keep_metadata: bool) -> dict:
     meta: dict = {}
     if keep_metadata and base_metadata:
@@ -174,7 +193,7 @@ def build_metadata(plan: Plan, base_metadata: dict | None, recipe: dict | None, 
     meta["format"] = "pt"
     meta["merge_tool"] = f"{TOOL_NAME} {__version__}"
     if recipe is not None:
-        meta["merge_recipe"] = json.dumps(recipe, separators=(",", ":"))
+        meta["merge_recipe"] = json.dumps(recipe_for_metadata(recipe), separators=(",", ":"))
     return meta
 
 

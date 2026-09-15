@@ -7,7 +7,7 @@ Merges, analyzes, extracts and converts Krea 2 diffusion models on Windows, with
 - **Extract**: a LoRA from the difference between two checkpoints in any storage format.
 - **Checkpoint merge and convert**: one to three checkpoints and up to four LoRAs, nine merge methods, output in fp16, bf16, fp32, fp8, fp8 scaled or int8 convrot in the exact layout of the official Krea 2 files, or the result written as a LoRA.
 
-Every run is described by a recipe. The recipe is stored in the output file's metadata, can be reloaded into the GUI, and reproduces the file byte for byte.
+Every run is described by a recipe. The recipe is stored in the output file's metadata with file names only, never folders, so a published file does not reveal where its inputs lived; it can be reloaded into the GUI, which looks for the named inputs next to the file, and reproduces the file byte for byte.
 
 ![Checkpoint merge tab, light theme](scr/light.png)
 

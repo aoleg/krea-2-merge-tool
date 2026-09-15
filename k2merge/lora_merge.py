@@ -16,7 +16,7 @@ import torch
 from . import TOOL_NAME, __version__
 from .analysis import AnalysisReport, analyze_sources
 from .blocks import Shaping
-from .engine import Cancelled, pick_device
+from .engine import Cancelled, pick_device, recipe_for_metadata
 from .keys import KREA2_BLOCKS, canon, ckpt_module, strip_prefixes
 from .lora import LoraFile, LoraFormatError
 from .refcheck import load_reference_header
@@ -266,7 +266,7 @@ def merge_loras(inputs: list[LoraInput], out_path: str, opts: LoraMergeOptions, 
         if opts.keep_metadata:
             meta.update({k: str(v) for k, v in ref_src.file.metadata.items()})
         recipe = {"function": "lora_merge", "inputs": [i.to_dict() for i in inputs], "options": opts.to_dict()}
-        meta.update({"merge_tool": f"{TOOL_NAME} {__version__}", "merge_recipe": json.dumps(recipe, separators=(",", ":")),
+        meta.update({"merge_tool": f"{TOOL_NAME} {__version__}", "merge_recipe": json.dumps(recipe_for_metadata(recipe), separators=(",", ":")),
                      "merge_output_rank": f"{min(ranks)}-{max(ranks)}" if min(ranks) != max(ranks) else str(ranks[0])})
         tag, tdt = DTYPE_TAG[opts.dtype], DTYPE_TORCH[opts.dtype]
         writer = StreamWriter(out_path, meta)
