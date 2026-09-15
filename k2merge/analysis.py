@@ -228,6 +228,22 @@ class ModuleSpectrum:
             return 0.0
         return self.energy / float(self.sv[0].double() ** 2)
 
+    def effective_rank_denoised(self) -> float:
+        """Effective rank of the directions above the noise edge (the raw value without a noise model)."""
+        sv = self.denoised_sv()
+        s2 = sv.double() ** 2
+        tot = float(s2.sum().item())
+        if tot <= 0:
+            return 0.0
+        p = s2[s2 > 0] / tot
+        return float(torch.exp(-(p * torch.log(p)).sum()).item())
+
+    def stable_rank_denoised(self) -> float:
+        sv = self.denoised_sv()
+        if sv.numel() == 0 or float(sv[0]) <= 0:
+            return 0.0
+        return float((sv.double() ** 2).sum().item()) / float(sv[0].double() ** 2)
+
     # kept for older callers
     def signal_rank(self) -> int:
         return self.n_above_noise if self.noise_var > 0 else int(self.sv.numel())

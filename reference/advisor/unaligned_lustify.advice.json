@@ -1,0 +1,1753 @@
+{
+ "tool": "krea2_merge_tool 0.1.0",
+ "run": {
+  "function": "advise",
+  "A": "anterosXXXKrea2_unaligned.safetensors",
+  "B": "lustify-v10-krea-raw-fp16.safetensors",
+  "C": "raw.safetensors",
+  "A_format": "plain BF16:256/F32:174",
+  "B_format": "plain BF16:256/F16:159/F32:15",
+  "C_format": "plain BF16:256/F32:174",
+  "A_quantized": false,
+  "B_quantized": false,
+  "C_quantized": false,
+  "A_dtype": "BF16",
+  "B_dtype": "BF16",
+  "C_dtype": "BF16",
+  "depth": "full",
+  "targets": 264,
+  "others": 166,
+  "device": "cuda",
+  "timestamp": "2026-09-15 16:32:02",
+  "goal": "add_content"
+ },
+ "label": "anterosXXXKrea2_unaligned + lustify-v10-krea-raw-fp16 vs raw",
+ "features": {
+  "groups": {
+   "blocks.attn": {
+    "nB": 42.52986687857452,
+    "relB": 0.015353178956040601,
+    "n": 3699376128,
+    "nA": 52.193542853579174,
+    "relA": 0.018841742582186835,
+    "rho": 0.8148492045823641,
+    "cos": 0.01040588237210922,
+    "c_a_on_b": 0.012770316659316817,
+    "c_b_on_a": 0.008479224973890842
+   },
+   "blocks.mlp": {
+    "nB": 67.74176575005123,
+    "relB": 0.01710340190863501,
+    "n": 8455716864,
+    "nA": 79.0823530827948,
+    "relA": 0.019966666851381824,
+    "rho": 0.8565977504378176,
+    "cos": 0.012146434535198473,
+    "c_a_on_b": 0.014179858082735195,
+    "c_b_on_a": 0.010404608498691232
+   },
+   "txtfusion": {
+    "nB": 17.63131175079404,
+    "relB": 0.015657487474814522,
+    "n": 343408652,
+    "nA": 16.3543313680711,
+    "relA": 0.014523464968113178,
+    "rho": 1.0780820905473407,
+    "cos": 0.03273109458574877,
+    "c_a_on_b": 0.030360484486975613,
+    "c_b_on_a": 0.03528680687690677
+   },
+   "projections": {
+    "nB": 0.0,
+    "relB": 0.0,
+    "n": 320077824,
+    "nA": 18.380604312623976,
+    "relA": 0.02967601442780933,
+    "rho": 0.0,
+    "cos": 0.0,
+    "c_a_on_b": 0.0,
+    "c_b_on_a": 0.0
+   }
+  },
+  "overall": {
+   "nB": 81.90604103298958,
+   "relB": 0.016377147079489965,
+   "n": 12818579468,
+   "nA": 97.89532805049562,
+   "relA": 0.01957421169010161,
+   "rho": 0.8366695598664466,
+   "cos": 0.01217320072616358,
+   "c_a_on_b": 0.014549591989586339,
+   "c_b_on_a": 0.010184946493725191
+  },
+  "zones": {
+   "composition": {
+    "share": 0.4538512783785133,
+    "param_share": 0.33865723193720737,
+    "conc": 1.340149376944842,
+    "nB": 55.17885904393695,
+    "relB": 0.01825723135469305,
+    "n": 4341104640,
+    "nA": 60.272974026592166,
+    "relA": 0.019942739851918197,
+    "rho": 0.9154826012002044,
+    "cos": 0.007472997818083609,
+    "c_a_on_b": 0.008162905344445056,
+    "c_b_on_a": 0.0068413994812626345
+   },
+   "character": {
+    "share": 0.31848859179422984,
+    "param_share": 0.3047915087434866,
+    "conc": 1.0449391884544617,
+    "nB": 46.22350512501791,
+    "relB": 0.015743671791920016,
+    "n": 3906994176,
+    "nA": 57.98645537994379,
+    "relA": 0.01975011889318067,
+    "rho": 0.797143140103121,
+    "cos": 0.016250398123749576,
+    "c_a_on_b": 0.020385796861586706,
+    "c_b_on_a": 0.012953893388291601
+   },
+   "style": {
+    "share": 0.18132211972841464,
+    "param_share": 0.3047915087434866,
+    "conc": 0.5949054173980151,
+    "nB": 34.87717723972032,
+    "relB": 0.014729984547496978,
+    "n": 3906994176,
+    "nA": 44.5300356970412,
+    "relA": 0.018806761029097712,
+    "rho": 0.7832281446394109,
+    "cos": 0.012722595044352079,
+    "c_a_on_b": 0.016243791967166108,
+    "c_b_on_a": 0.009964694511586443
+   },
+   "non_block": {
+    "share": 0.046338010098842246,
+    "param_share": 0.05175975057581942,
+    "conc": 0.8952518044105482,
+    "nB": 17.63131175079404,
+    "relB": 0.013719127054657195,
+    "n": 663486476,
+    "nA": 24.603064227732396,
+    "relA": 0.01914392807778191,
+    "rho": 0.7166307248395569,
+    "cos": 0.021757256004381456,
+    "c_a_on_b": 0.030360484486975613,
+    "c_b_on_a": 0.015591918140939687
+   }
+  },
+  "zone_focus": null,
+  "relation": "independent",
+  "containment": null,
+  "containment_text": "",
+  "w_eq": 1.1952149904433298,
+  "nb_factor": null,
+  "structure": {
+   "dA": {
+    "eff_over_dim": 0.22293999957615912,
+    "stable": 37.4581968035483,
+    "energy_at_rank": {
+     "8": 0.10156013575153078,
+     "16": 0.14554558355327182,
+     "32": 0.20930920945124837,
+     "64": 0.3030503694840948,
+     "128": 0.433267842807594,
+     "256": 0.5843108035872435,
+     "512": 0.7304946204240024,
+     "1024": 0.8623060566019426
+    },
+    "eff_over_dim_raw": 0.22841462020096398,
+    "e64": 0.3030503694840948,
+    "e256": 0.5843108035872435,
+    "noise": 0.002745528968641198,
+    "class": "mixed"
+   },
+   "dB": {
+    "eff_over_dim": 0.20729473931142678,
+    "stable": 19.777082821838704,
+    "energy_at_rank": {
+     "8": 0.1666356262829163,
+     "16": 0.22060724813485624,
+     "32": 0.2870292359336174,
+     "64": 0.3737396296929033,
+     "128": 0.4829892599380998,
+     "256": 0.6086117430747191,
+     "512": 0.7381044095634732,
+     "1024": 0.8566251492002358
+    },
+    "eff_over_dim_raw": 0.21802775921195294,
+    "e64": 0.3737396296929033,
+    "e256": 0.6086117430747191,
+    "noise": 0.004271163423356129,
+    "class": "mixed"
+   }
+  },
+  "non_target_share": 7.499279207550697e-07,
+  "precision": {
+   "A": "plain BF16",
+   "B": "plain BF16",
+   "C": "plain BF16",
+   "mismatch": false
+  }
+ },
+ "others": [
+  [
+   "blocks.0.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   0,
+   0.11454442888498306,
+   0.011242339387536049,
+   52.33522033691406
+  ],
+  [
+   "blocks.0.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   0,
+   0.11501166224479675,
+   0.011048934422433376,
+   52.39147186279297
+  ],
+  [
+   "blocks.0.mod.lin",
+   "blocks.mod_norm",
+   0,
+   0.1706014722585678,
+   0.011762997135519981,
+   55.840152740478516
+  ],
+  [
+   "blocks.0.postnorm.scale",
+   "blocks.mod_norm",
+   0,
+   0.07427280396223068,
+   0.006306233815848827,
+   30.279678344726562
+  ],
+  [
+   "blocks.0.prenorm.scale",
+   "blocks.mod_norm",
+   0,
+   0.08167554438114166,
+   0.00877575296908617,
+   41.1143798828125
+  ],
+  [
+   "blocks.1.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   1,
+   0.01239093765616417,
+   0.000661070691421628,
+   3.4693779945373535
+  ],
+  [
+   "blocks.1.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   1,
+   0.012807955965399742,
+   0.0007366293575614691,
+   3.755091667175293
+  ],
+  [
+   "blocks.1.mod.lin",
+   "blocks.mod_norm",
+   1,
+   0.2093554139137268,
+   0.008324144408106804,
+   39.659820556640625
+  ],
+  [
+   "blocks.1.postnorm.scale",
+   "blocks.mod_norm",
+   1,
+   0.09467502683401108,
+   0.004651199094951153,
+   23.23169708251953
+  ],
+  [
+   "blocks.1.prenorm.scale",
+   "blocks.mod_norm",
+   1,
+   0.08906252682209015,
+   0.004133649170398712,
+   20.05732536315918
+  ],
+  [
+   "blocks.10.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   10,
+   0.014384455978870392,
+   0.0011460320092737675,
+   5.680484771728516
+  ],
+  [
+   "blocks.10.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   10,
+   0.01428001094609499,
+   0.0011984246084466577,
+   5.762203693389893
+  ],
+  [
+   "blocks.10.mod.lin",
+   "blocks.mod_norm",
+   10,
+   0.21692417562007904,
+   0.008121599443256855,
+   40.05643081665039
+  ],
+  [
+   "blocks.10.postnorm.scale",
+   "blocks.mod_norm",
+   10,
+   0.10137294232845306,
+   0.003357532899826765,
+   17.396709442138672
+  ],
+  [
+   "blocks.10.prenorm.scale",
+   "blocks.mod_norm",
+   10,
+   0.10008954256772995,
+   0.0041098627261817455,
+   19.39783477783203
+  ],
+  [
+   "blocks.11.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   11,
+   0.015256752260029316,
+   0.001330305472947657,
+   5.594384670257568
+  ],
+  [
+   "blocks.11.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   11,
+   0.015759702771902084,
+   0.0011930976761505008,
+   5.658657550811768
+  ],
+  [
+   "blocks.11.mod.lin",
+   "blocks.mod_norm",
+   11,
+   0.21105089783668518,
+   0.008210398256778717,
+   39.04588317871094
+  ],
+  [
+   "blocks.11.postnorm.scale",
+   "blocks.mod_norm",
+   11,
+   0.10099578648805618,
+   0.003219836624339223,
+   16.43022346496582
+  ],
+  [
+   "blocks.11.prenorm.scale",
+   "blocks.mod_norm",
+   11,
+   0.09083329886198044,
+   0.002776525216177106,
+   13.644755363464355
+  ],
+  [
+   "blocks.12.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   12,
+   0.01419967319816351,
+   0.0014431491727009416,
+   7.023496627807617
+  ],
+  [
+   "blocks.12.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   12,
+   0.015382619574666023,
+   0.001411822740919888,
+   7.1588521003723145
+  ],
+  [
+   "blocks.12.mod.lin",
+   "blocks.mod_norm",
+   12,
+   0.21109379827976227,
+   0.008608020842075348,
+   40.81011199951172
+  ],
+  [
+   "blocks.12.postnorm.scale",
+   "blocks.mod_norm",
+   12,
+   0.09855052828788757,
+   0.002966310130432248,
+   15.178674697875977
+  ],
+  [
+   "blocks.12.prenorm.scale",
+   "blocks.mod_norm",
+   12,
+   0.09159763157367706,
+   0.002926706336438656,
+   14.261298179626465
+  ],
+  [
+   "blocks.13.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   13,
+   0.016282135620713234,
+   0.0013166485587134957,
+   6.244620323181152
+  ],
+  [
+   "blocks.13.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   13,
+   0.015280494466423988,
+   0.0015341606922447681,
+   6.454833984375
+  ],
+  [
+   "blocks.13.mod.lin",
+   "blocks.mod_norm",
+   13,
+   0.21004828810691833,
+   0.008984332904219627,
+   43.729042053222656
+  ],
+  [
+   "blocks.13.postnorm.scale",
+   "blocks.mod_norm",
+   13,
+   0.09936632961034775,
+   0.00285450741648674,
+   14.285287857055664
+  ],
+  [
+   "blocks.13.prenorm.scale",
+   "blocks.mod_norm",
+   13,
+   0.09022615849971771,
+   0.0027429191395640373,
+   13.486722946166992
+  ],
+  [
+   "blocks.14.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   14,
+   0.016459688544273376,
+   0.0015531028620898724,
+   7.5475287437438965
+  ],
+  [
+   "blocks.14.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   14,
+   0.015884744003415108,
+   0.0014483139384537935,
+   7.73099946975708
+  ],
+  [
+   "blocks.14.mod.lin",
+   "blocks.mod_norm",
+   14,
+   0.2052241414785385,
+   0.008950463496148586,
+   44.24205780029297
+  ],
+  [
+   "blocks.14.postnorm.scale",
+   "blocks.mod_norm",
+   14,
+   0.09547540545463562,
+   0.002921049715951085,
+   14.310888290405273
+  ],
+  [
+   "blocks.14.prenorm.scale",
+   "blocks.mod_norm",
+   14,
+   0.09110738337039948,
+   0.0027691680006682873,
+   13.246353149414062
+  ],
+  [
+   "blocks.15.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   15,
+   0.015022896230220795,
+   0.0016171832103282213,
+   7.2150139808654785
+  ],
+  [
+   "blocks.15.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   15,
+   0.015338486060500145,
+   0.0015646207612007856,
+   7.505659103393555
+  ],
+  [
+   "blocks.15.mod.lin",
+   "blocks.mod_norm",
+   15,
+   0.20640921592712402,
+   0.009674386121332645,
+   47.14473342895508
+  ],
+  [
+   "blocks.15.postnorm.scale",
+   "blocks.mod_norm",
+   15,
+   0.09615842998027802,
+   0.002944002393633127,
+   14.13864517211914
+  ],
+  [
+   "blocks.15.prenorm.scale",
+   "blocks.mod_norm",
+   15,
+   0.09070373326539993,
+   0.00305455201305449,
+   14.749378204345703
+  ],
+  [
+   "blocks.16.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   16,
+   0.015536485239863396,
+   0.0013600514503195882,
+   6.597898006439209
+  ],
+  [
+   "blocks.16.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   16,
+   0.01591394655406475,
+   0.001337563619017601,
+   6.874241352081299
+  ],
+  [
+   "blocks.16.mod.lin",
+   "blocks.mod_norm",
+   16,
+   0.20312711596488953,
+   0.009230167604982853,
+   44.98094940185547
+  ],
+  [
+   "blocks.16.postnorm.scale",
+   "blocks.mod_norm",
+   16,
+   0.09218350797891617,
+   0.0029389841947704554,
+   13.74316692352295
+  ],
+  [
+   "blocks.16.prenorm.scale",
+   "blocks.mod_norm",
+   16,
+   0.08861542493104935,
+   0.003199225291609764,
+   15.255902290344238
+  ],
+  [
+   "blocks.17.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   17,
+   0.013284621760249138,
+   0.0013871953124180436,
+   6.432774066925049
+  ],
+  [
+   "blocks.17.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   17,
+   0.015894684940576553,
+   0.001570767955854535,
+   6.73499870300293
+  ],
+  [
+   "blocks.17.mod.lin",
+   "blocks.mod_norm",
+   17,
+   0.20659004151821136,
+   0.010928450152277946,
+   52.45023727416992
+  ],
+  [
+   "blocks.17.postnorm.scale",
+   "blocks.mod_norm",
+   17,
+   0.09337890148162842,
+   0.0027472111396491528,
+   13.29574203491211
+  ],
+  [
+   "blocks.17.prenorm.scale",
+   "blocks.mod_norm",
+   17,
+   0.08792393654584885,
+   0.0029502229299396276,
+   14.59703254699707
+  ],
+  [
+   "blocks.18.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   18,
+   0.016644150018692017,
+   0.0014584249584004283,
+   7.545825004577637
+  ],
+  [
+   "blocks.18.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   18,
+   0.014752203598618507,
+   0.0014109071344137192,
+   7.6980414390563965
+  ],
+  [
+   "blocks.18.mod.lin",
+   "blocks.mod_norm",
+   18,
+   0.20467710494995117,
+   0.011462915688753128,
+   55.15775680541992
+  ],
+  [
+   "blocks.18.postnorm.scale",
+   "blocks.mod_norm",
+   18,
+   0.09288027882575989,
+   0.002711040433496237,
+   13.215463638305664
+  ],
+  [
+   "blocks.18.prenorm.scale",
+   "blocks.mod_norm",
+   18,
+   0.08863170444965363,
+   0.002660694532096386,
+   12.706145286560059
+  ],
+  [
+   "blocks.19.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   19,
+   0.016809575259685516,
+   0.0016316132387146354,
+   7.929060459136963
+  ],
+  [
+   "blocks.19.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   19,
+   0.01589132472872734,
+   0.001669974299147725,
+   8.275226593017578
+  ],
+  [
+   "blocks.19.mod.lin",
+   "blocks.mod_norm",
+   19,
+   0.20826412737369537,
+   0.01227590162307024,
+   57.638526916503906
+  ],
+  [
+   "blocks.19.postnorm.scale",
+   "blocks.mod_norm",
+   19,
+   0.094344861805439,
+   0.0026866127736866474,
+   12.797794342041016
+  ],
+  [
+   "blocks.19.prenorm.scale",
+   "blocks.mod_norm",
+   19,
+   0.08623646944761276,
+   0.003279629163444042,
+   16.172405242919922
+  ],
+  [
+   "blocks.2.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   2,
+   0.012354021891951561,
+   0.000916041899472475,
+   4.43115234375
+  ],
+  [
+   "blocks.2.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   2,
+   0.013152191415429115,
+   0.0009515004931017756,
+   4.5284953117370605
+  ],
+  [
+   "blocks.2.mod.lin",
+   "blocks.mod_norm",
+   2,
+   0.22033797204494476,
+   0.007220651488751173,
+   35.703739166259766
+  ],
+  [
+   "blocks.2.postnorm.scale",
+   "blocks.mod_norm",
+   2,
+   0.0987543836236,
+   0.004705157596617937,
+   24.176424026489258
+  ],
+  [
+   "blocks.2.prenorm.scale",
+   "blocks.mod_norm",
+   2,
+   0.09375134855508804,
+   0.004769162740558386,
+   23.199464797973633
+  ],
+  [
+   "blocks.20.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   20,
+   0.015190859325230122,
+   0.0016541365766897798,
+   8.168919563293457
+  ],
+  [
+   "blocks.20.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   20,
+   0.016513656824827194,
+   0.0016379141015931964,
+   8.415350914001465
+  ],
+  [
+   "blocks.20.mod.lin",
+   "blocks.mod_norm",
+   20,
+   0.20344051718711853,
+   0.012810295447707176,
+   62.9586181640625
+  ],
+  [
+   "blocks.20.postnorm.scale",
+   "blocks.mod_norm",
+   20,
+   0.09148353338241577,
+   0.002634662203490734,
+   13.052119255065918
+  ],
+  [
+   "blocks.20.prenorm.scale",
+   "blocks.mod_norm",
+   20,
+   0.08537726104259491,
+   0.0032845991663634777,
+   15.448712348937988
+  ],
+  [
+   "blocks.21.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   21,
+   0.015045256353914738,
+   0.0014096118975430727,
+   6.569454193115234
+  ],
+  [
+   "blocks.21.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   21,
+   0.015254847705364227,
+   0.0015788982855156064,
+   6.836225509643555
+  ],
+  [
+   "blocks.21.mod.lin",
+   "blocks.mod_norm",
+   21,
+   0.20298515260219574,
+   0.013856064528226852,
+   68.98542785644531
+  ],
+  [
+   "blocks.21.postnorm.scale",
+   "blocks.mod_norm",
+   21,
+   0.0918089896440506,
+   0.00312948040664196,
+   14.767601013183594
+  ],
+  [
+   "blocks.21.prenorm.scale",
+   "blocks.mod_norm",
+   21,
+   0.08777802437543869,
+   0.0036314111202955246,
+   17.31607437133789
+  ],
+  [
+   "blocks.22.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   22,
+   0.01945587992668152,
+   0.0015841107815504074,
+   7.332169532775879
+  ],
+  [
+   "blocks.22.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   22,
+   0.018476996570825577,
+   0.001711369608528912,
+   7.753250598907471
+  ],
+  [
+   "blocks.22.mod.lin",
+   "blocks.mod_norm",
+   22,
+   0.1918305605649948,
+   0.012816688977181911,
+   63.89826202392578
+  ],
+  [
+   "blocks.22.postnorm.scale",
+   "blocks.mod_norm",
+   22,
+   0.08705765008926392,
+   0.0033595114946365356,
+   16.567764282226562
+  ],
+  [
+   "blocks.22.prenorm.scale",
+   "blocks.mod_norm",
+   22,
+   0.08620686829090118,
+   0.004209688864648342,
+   20.584096908569336
+  ],
+  [
+   "blocks.23.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   23,
+   0.013178176246583462,
+   0.0015547272050753236,
+   7.305541515350342
+  ],
+  [
+   "blocks.23.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   23,
+   0.014852345921099186,
+   0.0015597327146679163,
+   7.533968448638916
+  ],
+  [
+   "blocks.23.mod.lin",
+   "blocks.mod_norm",
+   23,
+   0.19991092383861542,
+   0.017402619123458862,
+   79.31484985351562
+  ],
+  [
+   "blocks.23.postnorm.scale",
+   "blocks.mod_norm",
+   23,
+   0.08133244514465332,
+   0.0030780888628214598,
+   14.857329368591309
+  ],
+  [
+   "blocks.23.prenorm.scale",
+   "blocks.mod_norm",
+   23,
+   0.07555357366800308,
+   0.0037090808618813753,
+   18.336872100830078
+  ],
+  [
+   "blocks.24.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   24,
+   0.018451211974024773,
+   0.001434164005331695,
+   7.45113468170166
+  ],
+  [
+   "blocks.24.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   24,
+   0.01732608489692211,
+   0.0014551080530509353,
+   7.733476638793945
+  ],
+  [
+   "blocks.24.mod.lin",
+   "blocks.mod_norm",
+   24,
+   0.19562125205993652,
+   0.018152641132473946,
+   83.546630859375
+  ],
+  [
+   "blocks.24.postnorm.scale",
+   "blocks.mod_norm",
+   24,
+   0.07879169285297394,
+   0.003376231761649251,
+   16.88155746459961
+  ],
+  [
+   "blocks.24.prenorm.scale",
+   "blocks.mod_norm",
+   24,
+   0.08034291863441467,
+   0.004791079089045525,
+   23.659404754638672
+  ],
+  [
+   "blocks.25.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   25,
+   0.016155200079083443,
+   0.0013838940067216754,
+   7.323760509490967
+  ],
+  [
+   "blocks.25.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   25,
+   0.01767333410680294,
+   0.0016253089997917414,
+   7.748880386352539
+  ],
+  [
+   "blocks.25.mod.lin",
+   "blocks.mod_norm",
+   25,
+   0.19482284784317017,
+   0.01986328884959221,
+   93.68089294433594
+  ],
+  [
+   "blocks.25.postnorm.scale",
+   "blocks.mod_norm",
+   25,
+   0.07200080156326294,
+   0.0037170767318457365,
+   18.847644805908203
+  ],
+  [
+   "blocks.25.prenorm.scale",
+   "blocks.mod_norm",
+   25,
+   0.07494474202394485,
+   0.005392495077103376,
+   26.775936126708984
+  ],
+  [
+   "blocks.26.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   26,
+   0.021136224269866943,
+   0.0019314121454954147,
+   8.705924034118652
+  ],
+  [
+   "blocks.26.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   26,
+   0.020553337410092354,
+   0.0016443489585071802,
+   8.798172950744629
+  ],
+  [
+   "blocks.26.mod.lin",
+   "blocks.mod_norm",
+   26,
+   0.20174071192741394,
+   0.021534381434321404,
+   103.57685089111328
+  ],
+  [
+   "blocks.26.postnorm.scale",
+   "blocks.mod_norm",
+   26,
+   0.07518468797206879,
+   0.004722421523183584,
+   23.295459747314453
+  ],
+  [
+   "blocks.26.prenorm.scale",
+   "blocks.mod_norm",
+   26,
+   0.0701800063252449,
+   0.00481039984151721,
+   23.614364624023438
+  ],
+  [
+   "blocks.27.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   27,
+   0.008869510143995285,
+   0.0008273112471215427,
+   4.130311012268066
+  ],
+  [
+   "blocks.27.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   27,
+   0.008984421379864216,
+   0.0008244228665716946,
+   4.177541255950928
+  ],
+  [
+   "blocks.27.mod.lin",
+   "blocks.mod_norm",
+   27,
+   0.13242891430854797,
+   0.0134895546361804,
+   64.17955017089844
+  ],
+  [
+   "blocks.27.postnorm.scale",
+   "blocks.mod_norm",
+   27,
+   0.06804919987916946,
+   0.005705172661691904,
+   27.713510513305664
+  ],
+  [
+   "blocks.27.prenorm.scale",
+   "blocks.mod_norm",
+   27,
+   0.05635816231369972,
+   0.00436353450641036,
+   20.62446403503418
+  ],
+  [
+   "blocks.3.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   3,
+   0.012906013987958431,
+   0.0007975699845701456,
+   3.9375596046447754
+  ],
+  [
+   "blocks.3.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   3,
+   0.012986029498279095,
+   0.0007435244624502957,
+   4.055482387542725
+  ],
+  [
+   "blocks.3.mod.lin",
+   "blocks.mod_norm",
+   3,
+   0.21974271535873413,
+   0.006246549542993307,
+   29.704912185668945
+  ],
+  [
+   "blocks.3.postnorm.scale",
+   "blocks.mod_norm",
+   3,
+   0.09931144118309021,
+   0.004381420556455851,
+   22.04555892944336
+  ],
+  [
+   "blocks.3.prenorm.scale",
+   "blocks.mod_norm",
+   3,
+   0.09546180069446564,
+   0.00423795310780406,
+   20.255765914916992
+  ],
+  [
+   "blocks.4.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   4,
+   0.014967991039156914,
+   0.0007835010765120387,
+   4.279272556304932
+  ],
+  [
+   "blocks.4.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   4,
+   0.014901750721037388,
+   0.000765174045227468,
+   4.2223076820373535
+  ],
+  [
+   "blocks.4.mod.lin",
+   "blocks.mod_norm",
+   4,
+   0.2147156149148941,
+   0.0053858221508562565,
+   26.20426368713379
+  ],
+  [
+   "blocks.4.postnorm.scale",
+   "blocks.mod_norm",
+   4,
+   0.09778457134962082,
+   0.004108443856239319,
+   21.316068649291992
+  ],
+  [
+   "blocks.4.prenorm.scale",
+   "blocks.mod_norm",
+   4,
+   0.09373563528060913,
+   0.0036950514186173677,
+   18.421924591064453
+  ],
+  [
+   "blocks.5.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   5,
+   0.014783784747123718,
+   0.0006877282867208123,
+   3.723385810852051
+  ],
+  [
+   "blocks.5.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   5,
+   0.014913740567862988,
+   0.0007254283409565687,
+   3.7378008365631104
+  ],
+  [
+   "blocks.5.mod.lin",
+   "blocks.mod_norm",
+   5,
+   0.2113429754972458,
+   0.004848426207900047,
+   23.773305892944336
+  ],
+  [
+   "blocks.5.postnorm.scale",
+   "blocks.mod_norm",
+   5,
+   0.09818979352712631,
+   0.003983648028224707,
+   20.69774055480957
+  ],
+  [
+   "blocks.5.prenorm.scale",
+   "blocks.mod_norm",
+   5,
+   0.0951128676533699,
+   0.003596127964556217,
+   17.718902587890625
+  ],
+  [
+   "blocks.6.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   6,
+   0.014629365876317024,
+   0.0009672719170339406,
+   4.578693866729736
+  ],
+  [
+   "blocks.6.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   6,
+   0.014736405573785305,
+   0.0008691380498930812,
+   4.6385602951049805
+  ],
+  [
+   "blocks.6.mod.lin",
+   "blocks.mod_norm",
+   6,
+   0.21126903593540192,
+   0.004399397410452366,
+   21.35858154296875
+  ],
+  [
+   "blocks.6.postnorm.scale",
+   "blocks.mod_norm",
+   6,
+   0.09774760901927948,
+   0.003826039144769311,
+   19.927471160888672
+  ],
+  [
+   "blocks.6.prenorm.scale",
+   "blocks.mod_norm",
+   6,
+   0.09517454355955124,
+   0.003277167910709977,
+   16.18202781677246
+  ],
+  [
+   "blocks.7.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   7,
+   0.01521243341267109,
+   0.0008338391780853271,
+   4.521349906921387
+  ],
+  [
+   "blocks.7.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   7,
+   0.01476631872355938,
+   0.0007928558625280857,
+   4.606945514678955
+  ],
+  [
+   "blocks.7.mod.lin",
+   "blocks.mod_norm",
+   7,
+   0.20950566232204437,
+   0.004523090552538633,
+   21.481014251708984
+  ],
+  [
+   "blocks.7.postnorm.scale",
+   "blocks.mod_norm",
+   7,
+   0.09711447358131409,
+   0.0037266570143401623,
+   19.45230484008789
+  ],
+  [
+   "blocks.7.prenorm.scale",
+   "blocks.mod_norm",
+   7,
+   0.09450370073318481,
+   0.003478251863270998,
+   16.687000274658203
+  ],
+  [
+   "blocks.8.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   8,
+   0.013945745304226875,
+   0.001082173315808177,
+   4.78899621963501
+  ],
+  [
+   "blocks.8.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   8,
+   0.013853074051439762,
+   0.0009748970624059439,
+   4.875405311584473
+  ],
+  [
+   "blocks.8.mod.lin",
+   "blocks.mod_norm",
+   8,
+   0.21020857989788055,
+   0.004841882735490799,
+   23.193359375
+  ],
+  [
+   "blocks.8.postnorm.scale",
+   "blocks.mod_norm",
+   8,
+   0.09856823086738586,
+   0.003684993600472808,
+   19.408750534057617
+  ],
+  [
+   "blocks.8.prenorm.scale",
+   "blocks.mod_norm",
+   8,
+   0.09556844085454941,
+   0.0033270034473389387,
+   16.25075912475586
+  ],
+  [
+   "blocks.9.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   9,
+   0.01433330588042736,
+   0.0010080739157274365,
+   4.9560441970825195
+  ],
+  [
+   "blocks.9.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   9,
+   0.015508681535720825,
+   0.001100191380828619,
+   4.9913649559021
+  ],
+  [
+   "blocks.9.mod.lin",
+   "blocks.mod_norm",
+   9,
+   0.2117048054933548,
+   0.006530290003865957,
+   30.715511322021484
+  ],
+  [
+   "blocks.9.postnorm.scale",
+   "blocks.mod_norm",
+   9,
+   0.10116476565599442,
+   0.003725865390151739,
+   19.119657516479492
+  ],
+  [
+   "blocks.9.prenorm.scale",
+   "blocks.mod_norm",
+   9,
+   0.09587819129228592,
+   0.0035843518562614918,
+   17.126562118530273
+  ],
+  [
+   "first.bias",
+   "projections",
+   null,
+   0.029771823436021805,
+   0.0,
+   10.585444450378418
+  ],
+  [
+   "last.linear.bias",
+   "projections",
+   null,
+   0.002264241687953472,
+   0.0,
+   0.6592915058135986
+  ],
+  [
+   "last.modulation.lin",
+   "projections",
+   null,
+   0.06899519264698029,
+   0.008384027518332005,
+   62.1174430847168
+  ],
+  [
+   "last.norm.scale",
+   "projections",
+   null,
+   0.051833946257829666,
+   0.007226331625133753,
+   38.07622528076172
+  ],
+  [
+   "tmlp.0.bias",
+   "projections",
+   null,
+   0.013086055405437946,
+   0.0,
+   0.4567711651325226
+  ],
+  [
+   "tmlp.2.bias",
+   "projections",
+   null,
+   0.0487399697303772,
+   0.0,
+   1.757811188697815
+  ],
+  [
+   "tproj.1.bias",
+   "projections",
+   null,
+   0.18848630785942078,
+   0.0,
+   21.035490036010742
+  ],
+  [
+   "txtfusion.layerwise_blocks.0.attn.qknorm.knorm.scale",
+   "txtfusion",
+   null,
+   0.01324718352407217,
+   0.0004893385921604931,
+   2.2235395908355713
+  ],
+  [
+   "txtfusion.layerwise_blocks.0.attn.qknorm.qnorm.scale",
+   "txtfusion",
+   null,
+   0.013874179683625698,
+   0.00039955071406438947,
+   2.223944902420044
+  ],
+  [
+   "txtfusion.layerwise_blocks.0.postnorm.scale",
+   "txtfusion",
+   null,
+   0.06344523280858994,
+   0.004817880690097809,
+   24.716766357421875
+  ],
+  [
+   "txtfusion.layerwise_blocks.0.prenorm.scale",
+   "txtfusion",
+   null,
+   0.06690220534801483,
+   0.005301988683640957,
+   25.476516723632812
+  ],
+  [
+   "txtfusion.layerwise_blocks.1.attn.qknorm.knorm.scale",
+   "txtfusion",
+   null,
+   0.013175488449633121,
+   0.00018493762763682753,
+   0.952763557434082
+  ],
+  [
+   "txtfusion.layerwise_blocks.1.attn.qknorm.qnorm.scale",
+   "txtfusion",
+   null,
+   0.012862635776400566,
+   0.00020121225679758936,
+   0.9525251984596252
+  ],
+  [
+   "txtfusion.layerwise_blocks.1.postnorm.scale",
+   "txtfusion",
+   null,
+   0.06869279593229294,
+   0.005292598158121109,
+   25.67473030090332
+  ],
+  [
+   "txtfusion.layerwise_blocks.1.prenorm.scale",
+   "txtfusion",
+   null,
+   0.0561104379594326,
+   0.0016349084908142686,
+   7.975528240203857
+  ],
+  [
+   "txtfusion.refiner_blocks.0.attn.qknorm.knorm.scale",
+   "txtfusion",
+   null,
+   0.014577723108232021,
+   0.0004432567802723497,
+   2.2633605003356934
+  ],
+  [
+   "txtfusion.refiner_blocks.0.attn.qknorm.qnorm.scale",
+   "txtfusion",
+   null,
+   0.01465449295938015,
+   0.00045074522495269775,
+   2.26230788230896
+  ],
+  [
+   "txtfusion.refiner_blocks.0.postnorm.scale",
+   "txtfusion",
+   null,
+   0.06454315036535263,
+   0.004028981551527977,
+   19.0903263092041
+  ],
+  [
+   "txtfusion.refiner_blocks.0.prenorm.scale",
+   "txtfusion",
+   null,
+   0.05941711366176605,
+   0.0016339553985744715,
+   8.156386375427246
+  ],
+  [
+   "txtfusion.refiner_blocks.1.attn.qknorm.knorm.scale",
+   "txtfusion",
+   null,
+   0.013003144413232803,
+   0.0003350317128933966,
+   1.7199318408966064
+  ],
+  [
+   "txtfusion.refiner_blocks.1.attn.qknorm.qnorm.scale",
+   "txtfusion",
+   null,
+   0.013043377548456192,
+   0.0003697234205901623,
+   1.7190332412719727
+  ],
+  [
+   "txtfusion.refiner_blocks.1.postnorm.scale",
+   "txtfusion",
+   null,
+   0.060097258538007736,
+   0.0034007763024419546,
+   15.967041969299316
+  ],
+  [
+   "txtfusion.refiner_blocks.1.prenorm.scale",
+   "txtfusion",
+   null,
+   0.05907236784696579,
+   0.0013189146993681788,
+   6.411360740661621
+  ],
+  [
+   "txtmlp.0.scale",
+   "projections",
+   null,
+   0.06550029665231705,
+   0.0025465437211096287,
+   12.049735069274902
+  ],
+  [
+   "txtmlp.1.bias",
+   "projections",
+   null,
+   0.09766286611557007,
+   0.0,
+   2.8169314861297607
+  ],
+  [
+   "txtmlp.3.bias",
+   "projections",
+   null,
+   0.06703841686248779,
+   0.0,
+   7.406499862670898
+  ]
+ ],
+ "candidates": [
+  {
+   "label": "add difference at 0.6",
+   "goal": "add_content",
+   "steps": [
+    {
+     "function": "ckpt_merge",
+     "A": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\anterosXXXKrea2_unaligned.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "B": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\lustify-v10-krea-raw-fp16.safetensors",
+      "weight": 0.6,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "C": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\raw.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "loras": [],
+     "options": {
+      "method": "add_difference",
+      "params": {
+       "density": 0.2,
+       "lambda": 1.0,
+       "p": 0.5,
+       "seed": 0,
+       "beta": 0.0,
+       "gamma": 1.0,
+       "dare_ties": false
+      },
+      "output_format": "keep",
+      "passthrough": "official",
+      "fp8_layer_set": "official",
+      "int8_clip": "mse",
+      "keep_metadata": true,
+      "lora_mode": "after",
+      "output_as_lora": false,
+      "lora_out": {
+       "rank": 32,
+       "naming": "comfy",
+       "dtype": "fp16",
+       "method": "randomized"
+      },
+      "block_count": 28,
+      "use_gpu": true
+     },
+     "output": null
+    }
+   ],
+   "rationale": [
+    "the changes are independent (cosine near 0): adding B's change does not disturb A's, and the interference methods have nothing to resolve",
+    "weights: the equal contribution weight 1.20 halved and doubled"
+   ],
+   "expect": "A's subjects, settings and rendering on every seed, with B's change appearing on the same seeds in proportion to the weight",
+   "compare": "fixed seed grids of A alone and of each weight; if faces or settings converge on one type the weight is too high",
+   "flags": []
+  },
+  {
+   "label": "add difference at 1.2",
+   "goal": "add_content",
+   "steps": [
+    {
+     "function": "ckpt_merge",
+     "A": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\anterosXXXKrea2_unaligned.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "B": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\lustify-v10-krea-raw-fp16.safetensors",
+      "weight": 1.2,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "C": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\raw.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "loras": [],
+     "options": {
+      "method": "add_difference",
+      "params": {
+       "density": 0.2,
+       "lambda": 1.0,
+       "p": 0.5,
+       "seed": 0,
+       "beta": 0.0,
+       "gamma": 1.0,
+       "dare_ties": false
+      },
+      "output_format": "keep",
+      "passthrough": "official",
+      "fp8_layer_set": "official",
+      "int8_clip": "mse",
+      "keep_metadata": true,
+      "lora_mode": "after",
+      "output_as_lora": false,
+      "lora_out": {
+       "rank": 32,
+       "naming": "comfy",
+       "dtype": "fp16",
+       "method": "randomized"
+      },
+      "block_count": 28,
+      "use_gpu": true
+     },
+     "output": null
+    }
+   ],
+   "rationale": [
+    "the changes are independent (cosine near 0): adding B's change does not disturb A's, and the interference methods have nothing to resolve",
+    "weights: the equal contribution weight 1.20 halved and doubled"
+   ],
+   "expect": "A's subjects, settings and rendering on every seed, with B's change appearing on the same seeds in proportion to the weight",
+   "compare": "fixed seed grids of A alone and of each weight; if faces or settings converge on one type the weight is too high",
+   "flags": []
+  },
+  {
+   "label": "add difference at 2",
+   "goal": "add_content",
+   "steps": [
+    {
+     "function": "ckpt_merge",
+     "A": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\anterosXXXKrea2_unaligned.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "B": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\lustify-v10-krea-raw-fp16.safetensors",
+      "weight": 2.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "C": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\raw.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "loras": [],
+     "options": {
+      "method": "add_difference",
+      "params": {
+       "density": 0.2,
+       "lambda": 1.0,
+       "p": 0.5,
+       "seed": 0,
+       "beta": 0.0,
+       "gamma": 1.0,
+       "dare_ties": false
+      },
+      "output_format": "keep",
+      "passthrough": "official",
+      "fp8_layer_set": "official",
+      "int8_clip": "mse",
+      "keep_metadata": true,
+      "lora_mode": "after",
+      "output_as_lora": false,
+      "lora_out": {
+       "rank": 32,
+       "naming": "comfy",
+       "dtype": "fp16",
+       "method": "randomized"
+      },
+      "block_count": 28,
+      "use_gpu": true
+     },
+     "output": null
+    }
+   ],
+   "rationale": [
+    "the changes are independent (cosine near 0): adding B's change does not disturb A's, and the interference methods have nothing to resolve",
+    "weights: the equal contribution weight 1.20 halved and doubled"
+   ],
+   "expect": "A's subjects, settings and rendering on every seed, with B's change appearing on the same seeds in proportion to the weight",
+   "compare": "fixed seed grids of A alone and of each weight; if faces or settings converge on one type the weight is too high",
+   "flags": []
+  }
+ ],
+ "notes": []
+}

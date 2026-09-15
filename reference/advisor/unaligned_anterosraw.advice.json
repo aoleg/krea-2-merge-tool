@@ -1,0 +1,1733 @@
+{
+ "tool": "krea2_merge_tool 0.1.0",
+ "run": {
+  "function": "advise",
+  "A": "anterosXXXKrea2_unaligned.safetensors",
+  "B": "anterosXXXKrea2_raw.safetensors",
+  "C": "raw.safetensors",
+  "A_format": "plain BF16:256/F32:174",
+  "B_format": "plain BF16:256/F32:174",
+  "C_format": "plain BF16:256/F32:174",
+  "A_quantized": false,
+  "B_quantized": false,
+  "C_quantized": false,
+  "A_dtype": "BF16",
+  "B_dtype": "BF16",
+  "C_dtype": "BF16",
+  "depth": "full",
+  "targets": 264,
+  "others": 166,
+  "device": "cuda",
+  "timestamp": "2026-09-15 16:29:08",
+  "goal": "add_content"
+ },
+ "label": "anterosXXXKrea2_unaligned + anterosXXXKrea2_raw vs raw",
+ "features": {
+  "groups": {
+   "blocks.attn": {
+    "nB": 86.37014252271395,
+    "relB": 0.031179412303262887,
+    "n": 3699376128,
+    "nA": 52.193542853579174,
+    "relA": 0.018841742582186835,
+    "rho": 1.654805131067877,
+    "cos": 0.6035862303391535,
+    "c_a_on_b": 0.36474761831905117,
+    "c_b_on_a": 0.9988175910071487
+   },
+   "blocks.mlp": {
+    "nB": 132.48331623484395,
+    "relB": 0.03344931119914914,
+    "n": 8455716864,
+    "nA": 79.0823530827948,
+    "relA": 0.019966666851381824,
+    "rho": 1.6752576405527706,
+    "cos": 0.5960313224925065,
+    "c_a_on_b": 0.35578487037721496,
+    "c_b_on_a": 0.9985060270143439
+   },
+   "txtfusion": {
+    "nB": 27.970693365169527,
+    "relB": 0.024839375947583477,
+    "n": 343408652,
+    "nA": 16.3543313680711,
+    "relA": 0.014523464968113178,
+    "rho": 1.710292688564284,
+    "cos": 0.5897643020776998,
+    "c_a_on_b": 0.34483238221218215,
+    "c_b_on_a": 1.0086695738197078
+   },
+   "projections": {
+    "nB": 24.916396636095065,
+    "relB": 0.04022823915283007,
+    "n": 320077824,
+    "nA": 18.380604312623976,
+    "relA": 0.02967601442780933,
+    "rho": 1.3555809271723587,
+    "cos": 0.7348017840172364,
+    "c_a_on_b": 0.5420567442992713,
+    "c_b_on_a": 0.9960832836659885
+   }
+  },
+  "overall": {
+   "nB": 162.5263581965434,
+   "relB": 0.0324972131348235,
+   "n": 12818579468,
+   "nA": 97.89532805049562,
+   "relA": 0.01957421169010161,
+   "rho": 1.6602054605987968,
+   "cos": 0.601607968700372,
+   "c_a_on_b": 0.36236958796857965,
+   "c_b_on_a": 0.9987928347761078
+  },
+  "zones": {
+   "composition": {
+    "share": 0.328869810152109,
+    "param_share": 0.33865723193720737,
+    "conc": 0.9710993273962827,
+    "nB": 93.20426968609432,
+    "relB": 0.030838838359257548,
+    "n": 4341104640,
+    "nA": 60.272974026592166,
+    "relA": 0.019942739851918197,
+    "rho": 1.546369184387235,
+    "cos": 0.6469401003923065,
+    "c_a_on_b": 0.4183607038500728,
+    "c_b_on_a": 1.000408235391047
+   },
+   "character": {
+    "share": 0.3391653548529132,
+    "param_share": 0.3047915087434866,
+    "conc": 1.1127782274878129,
+    "nB": 94.65194566422647,
+    "relB": 0.03223834200746695,
+    "n": 3906994176,
+    "nA": 57.98645537994379,
+    "relA": 0.01975011889318067,
+    "rho": 1.6323112879385355,
+    "cos": 0.6120649922004995,
+    "c_a_on_b": 0.37496830213891574,
+    "c_b_on_a": 0.999080595720887
+   },
+   "style": {
+    "share": 0.2788436453655008,
+    "param_share": 0.3047915087434866,
+    "conc": 0.9148668429610893,
+    "nB": 85.8230965080712,
+    "relB": 0.03624642202817123,
+    "n": 3906994176,
+    "nA": 44.5300356970412,
+    "relA": 0.018806761029097712,
+    "rho": 1.9273080554429853,
+    "cos": 0.5159916223254786,
+    "c_a_on_b": 0.2677265945463397,
+    "c_b_on_a": 0.9944748102489893
+   },
+   "non_block": {
+    "share": 0.05312118962947701,
+    "param_share": 0.05175975057581942,
+    "conc": 1.0263030450980113,
+    "nB": 37.459131178599804,
+    "relB": 0.029147382070034422,
+    "n": 663486476,
+    "nA": 24.603064227732396,
+    "relA": 0.01914392807778191,
+    "rho": 1.522539259007264,
+    "cos": 0.6578777446203893,
+    "c_a_on_b": 0.4320924670601552,
+    "c_b_on_a": 1.0016446938116976
+   }
+  },
+  "zone_focus": null,
+  "relation": "aligned",
+  "containment": "B_contains_A",
+  "containment_text": "B's change carries A's change in full plus an extra part",
+  "w_eq": 0.6023350866701304,
+  "w_eq_extra": 0.7540576497430325,
+  "nb_factor": null,
+  "structure": {
+   "dA": {
+    "eff_over_dim": 0.22293999957615912,
+    "stable": 37.4581968035483,
+    "energy_at_rank": {
+     "8": 0.10156013575153078,
+     "16": 0.14554558355327182,
+     "32": 0.20930920945124837,
+     "64": 0.3030503694840948,
+     "128": 0.433267842807594,
+     "256": 0.5843108035872435,
+     "512": 0.7304946204240024,
+     "1024": 0.8623060566019426
+    },
+    "eff_over_dim_raw": 0.22841462020096398,
+    "e64": 0.3030503694840948,
+    "e256": 0.5843108035872435,
+    "noise": 0.002745528968641198,
+    "class": "mixed"
+   },
+   "dB": {
+    "eff_over_dim": 0.48222862531982646,
+    "stable": 62.75691649583586,
+    "energy_at_rank": {
+     "8": 0.058626132755633165,
+     "16": 0.08500062543859321,
+     "32": 0.1255404202506677,
+     "64": 0.18232417852525587,
+     "128": 0.26382581735619937,
+     "256": 0.36286153727421333,
+     "512": 0.4875232090459911,
+     "1024": 0.6466298379049914
+    },
+    "eff_over_dim_raw": 0.48222862531982646,
+    "e64": 0.18232417852525587,
+    "e256": 0.36286153727421333,
+    "noise": 0.00022937691490990583,
+    "class": "diffuse"
+   }
+  },
+  "non_target_share": 0.0003178266361980232,
+  "precision": {
+   "A": "plain BF16",
+   "B": "plain BF16",
+   "C": "plain BF16",
+   "mismatch": false
+  }
+ },
+ "others": [
+  [
+   "blocks.0.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   0,
+   0.11454442888498306,
+   0.11290623992681503,
+   52.33522033691406
+  ],
+  [
+   "blocks.0.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   0,
+   0.11501166224479675,
+   0.11311214417219162,
+   52.39147186279297
+  ],
+  [
+   "blocks.0.mod.lin",
+   "blocks.mod_norm",
+   0,
+   0.1706014722585678,
+   0.5242289304733276,
+   55.840152740478516
+  ],
+  [
+   "blocks.0.postnorm.scale",
+   "blocks.mod_norm",
+   0,
+   0.07427280396223068,
+   0.08523271977901459,
+   30.279678344726562
+  ],
+  [
+   "blocks.0.prenorm.scale",
+   "blocks.mod_norm",
+   0,
+   0.08167554438114166,
+   0.08881039172410965,
+   41.1143798828125
+  ],
+  [
+   "blocks.1.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   1,
+   0.01239093765616417,
+   0.012133629992604256,
+   3.4693779945373535
+  ],
+  [
+   "blocks.1.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   1,
+   0.012807955965399742,
+   0.012409602291882038,
+   3.755091667175293
+  ],
+  [
+   "blocks.1.mod.lin",
+   "blocks.mod_norm",
+   1,
+   0.2093554139137268,
+   0.4532047212123871,
+   39.659820556640625
+  ],
+  [
+   "blocks.1.postnorm.scale",
+   "blocks.mod_norm",
+   1,
+   0.09467502683401108,
+   0.10576778650283813,
+   23.23169708251953
+  ],
+  [
+   "blocks.1.prenorm.scale",
+   "blocks.mod_norm",
+   1,
+   0.08906252682209015,
+   0.09757191687822342,
+   20.05732536315918
+  ],
+  [
+   "blocks.10.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   10,
+   0.014384455978870392,
+   0.016277780756354332,
+   5.680484771728516
+  ],
+  [
+   "blocks.10.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   10,
+   0.01428001094609499,
+   0.01626894250512123,
+   5.762203693389893
+  ],
+  [
+   "blocks.10.mod.lin",
+   "blocks.mod_norm",
+   10,
+   0.21692417562007904,
+   0.4685156047344208,
+   40.05643081665039
+  ],
+  [
+   "blocks.10.postnorm.scale",
+   "blocks.mod_norm",
+   10,
+   0.10137294232845306,
+   0.11644245684146881,
+   17.396709442138672
+  ],
+  [
+   "blocks.10.prenorm.scale",
+   "blocks.mod_norm",
+   10,
+   0.10008954256772995,
+   0.11269287019968033,
+   19.39783477783203
+  ],
+  [
+   "blocks.11.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   11,
+   0.015256752260029316,
+   0.017068961635231972,
+   5.594384670257568
+  ],
+  [
+   "blocks.11.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   11,
+   0.015759702771902084,
+   0.018381888046860695,
+   5.658657550811768
+  ],
+  [
+   "blocks.11.mod.lin",
+   "blocks.mod_norm",
+   11,
+   0.21105089783668518,
+   0.47357457876205444,
+   39.04588317871094
+  ],
+  [
+   "blocks.11.postnorm.scale",
+   "blocks.mod_norm",
+   11,
+   0.10099578648805618,
+   0.11631755530834198,
+   16.43022346496582
+  ],
+  [
+   "blocks.11.prenorm.scale",
+   "blocks.mod_norm",
+   11,
+   0.09083329886198044,
+   0.10500380396842957,
+   13.644755363464355
+  ],
+  [
+   "blocks.12.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   12,
+   0.01419967319816351,
+   0.0170164592564106,
+   7.023496627807617
+  ],
+  [
+   "blocks.12.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   12,
+   0.015382619574666023,
+   0.017350275069475174,
+   7.1588521003723145
+  ],
+  [
+   "blocks.12.mod.lin",
+   "blocks.mod_norm",
+   12,
+   0.21109379827976227,
+   0.4892064034938812,
+   40.81011199951172
+  ],
+  [
+   "blocks.12.postnorm.scale",
+   "blocks.mod_norm",
+   12,
+   0.09855052828788757,
+   0.11506124585866928,
+   15.178674697875977
+  ],
+  [
+   "blocks.12.prenorm.scale",
+   "blocks.mod_norm",
+   12,
+   0.09159763157367706,
+   0.10583911091089249,
+   14.261298179626465
+  ],
+  [
+   "blocks.13.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   13,
+   0.016282135620713234,
+   0.018271395936608315,
+   6.244620323181152
+  ],
+  [
+   "blocks.13.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   13,
+   0.015280494466423988,
+   0.01740039326250553,
+   6.454833984375
+  ],
+  [
+   "blocks.13.mod.lin",
+   "blocks.mod_norm",
+   13,
+   0.21004828810691833,
+   0.511761486530304,
+   43.729042053222656
+  ],
+  [
+   "blocks.13.postnorm.scale",
+   "blocks.mod_norm",
+   13,
+   0.09936632961034775,
+   0.11720960587263107,
+   14.285287857055664
+  ],
+  [
+   "blocks.13.prenorm.scale",
+   "blocks.mod_norm",
+   13,
+   0.09022615849971771,
+   0.10570843517780304,
+   13.486722946166992
+  ],
+  [
+   "blocks.14.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   14,
+   0.016459688544273376,
+   0.01822725497186184,
+   7.5475287437438965
+  ],
+  [
+   "blocks.14.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   14,
+   0.015884744003415108,
+   0.019015446305274963,
+   7.73099946975708
+  ],
+  [
+   "blocks.14.mod.lin",
+   "blocks.mod_norm",
+   14,
+   0.2052241414785385,
+   0.5038368701934814,
+   44.24205780029297
+  ],
+  [
+   "blocks.14.postnorm.scale",
+   "blocks.mod_norm",
+   14,
+   0.09547540545463562,
+   0.11227571964263916,
+   14.310888290405273
+  ],
+  [
+   "blocks.14.prenorm.scale",
+   "blocks.mod_norm",
+   14,
+   0.09110738337039948,
+   0.10649687796831131,
+   13.246353149414062
+  ],
+  [
+   "blocks.15.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   15,
+   0.015022896230220795,
+   0.01683342643082142,
+   7.2150139808654785
+  ],
+  [
+   "blocks.15.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   15,
+   0.015338486060500145,
+   0.017757203429937363,
+   7.505659103393555
+  ],
+  [
+   "blocks.15.mod.lin",
+   "blocks.mod_norm",
+   15,
+   0.20640921592712402,
+   0.5166435837745667,
+   47.14473342895508
+  ],
+  [
+   "blocks.15.postnorm.scale",
+   "blocks.mod_norm",
+   15,
+   0.09615842998027802,
+   0.11311616748571396,
+   14.13864517211914
+  ],
+  [
+   "blocks.15.prenorm.scale",
+   "blocks.mod_norm",
+   15,
+   0.09070373326539993,
+   0.10647150129079819,
+   14.749378204345703
+  ],
+  [
+   "blocks.16.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   16,
+   0.015536485239863396,
+   0.016191093251109123,
+   6.597898006439209
+  ],
+  [
+   "blocks.16.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   16,
+   0.01591394655406475,
+   0.017944572493433952,
+   6.874241352081299
+  ],
+  [
+   "blocks.16.mod.lin",
+   "blocks.mod_norm",
+   16,
+   0.20312711596488953,
+   0.4993835389614105,
+   44.98094940185547
+  ],
+  [
+   "blocks.16.postnorm.scale",
+   "blocks.mod_norm",
+   16,
+   0.09218350797891617,
+   0.10768871754407883,
+   13.74316692352295
+  ],
+  [
+   "blocks.16.prenorm.scale",
+   "blocks.mod_norm",
+   16,
+   0.08861542493104935,
+   0.1048901304602623,
+   15.255902290344238
+  ],
+  [
+   "blocks.17.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   17,
+   0.013284621760249138,
+   0.014066425152122974,
+   6.432774066925049
+  ],
+  [
+   "blocks.17.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   17,
+   0.015894684940576553,
+   0.016339553520083427,
+   6.73499870300293
+  ],
+  [
+   "blocks.17.mod.lin",
+   "blocks.mod_norm",
+   17,
+   0.20659004151821136,
+   0.535449206829071,
+   52.45023727416992
+  ],
+  [
+   "blocks.17.postnorm.scale",
+   "blocks.mod_norm",
+   17,
+   0.09337890148162842,
+   0.11240924149751663,
+   13.29574203491211
+  ],
+  [
+   "blocks.17.prenorm.scale",
+   "blocks.mod_norm",
+   17,
+   0.08792393654584885,
+   0.10271342098712921,
+   14.59703254699707
+  ],
+  [
+   "blocks.18.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   18,
+   0.016644150018692017,
+   0.017764387652277946,
+   7.545825004577637
+  ],
+  [
+   "blocks.18.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   18,
+   0.014752203598618507,
+   0.015656543895602226,
+   7.6980414390563965
+  ],
+  [
+   "blocks.18.mod.lin",
+   "blocks.mod_norm",
+   18,
+   0.20467710494995117,
+   0.5500566363334656,
+   55.15775680541992
+  ],
+  [
+   "blocks.18.postnorm.scale",
+   "blocks.mod_norm",
+   18,
+   0.09288027882575989,
+   0.11280106008052826,
+   13.215463638305664
+  ],
+  [
+   "blocks.18.prenorm.scale",
+   "blocks.mod_norm",
+   18,
+   0.08863170444965363,
+   0.10504206269979477,
+   12.706145286560059
+  ],
+  [
+   "blocks.19.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   19,
+   0.016809575259685516,
+   0.016617251560091972,
+   7.929060459136963
+  ],
+  [
+   "blocks.19.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   19,
+   0.01589132472872734,
+   0.01736464351415634,
+   8.275226593017578
+  ],
+  [
+   "blocks.19.mod.lin",
+   "blocks.mod_norm",
+   19,
+   0.20826412737369537,
+   0.576580822467804,
+   57.638526916503906
+  ],
+  [
+   "blocks.19.postnorm.scale",
+   "blocks.mod_norm",
+   19,
+   0.094344861805439,
+   0.1149180456995964,
+   12.797794342041016
+  ],
+  [
+   "blocks.19.prenorm.scale",
+   "blocks.mod_norm",
+   19,
+   0.08623646944761276,
+   0.10655469447374344,
+   16.172405242919922
+  ],
+  [
+   "blocks.2.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   2,
+   0.012354021891951561,
+   0.013851793482899666,
+   4.43115234375
+  ],
+  [
+   "blocks.2.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   2,
+   0.013152191415429115,
+   0.01430403720587492,
+   4.5284953117370605
+  ],
+  [
+   "blocks.2.mod.lin",
+   "blocks.mod_norm",
+   2,
+   0.22033797204494476,
+   0.4401611089706421,
+   35.703739166259766
+  ],
+  [
+   "blocks.2.postnorm.scale",
+   "blocks.mod_norm",
+   2,
+   0.0987543836236,
+   0.10888621211051941,
+   24.176424026489258
+  ],
+  [
+   "blocks.2.prenorm.scale",
+   "blocks.mod_norm",
+   2,
+   0.09375134855508804,
+   0.10319272428750992,
+   23.199464797973633
+  ],
+  [
+   "blocks.20.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   20,
+   0.015190859325230122,
+   0.016483506187796593,
+   8.168919563293457
+  ],
+  [
+   "blocks.20.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   20,
+   0.016513656824827194,
+   0.01802591048181057,
+   8.415350914001465
+  ],
+  [
+   "blocks.20.mod.lin",
+   "blocks.mod_norm",
+   20,
+   0.20344051718711853,
+   0.5864133238792419,
+   62.9586181640625
+  ],
+  [
+   "blocks.20.postnorm.scale",
+   "blocks.mod_norm",
+   20,
+   0.09148353338241577,
+   0.11476258188486099,
+   13.052119255065918
+  ],
+  [
+   "blocks.20.prenorm.scale",
+   "blocks.mod_norm",
+   20,
+   0.08537726104259491,
+   0.10359034687280655,
+   15.448712348937988
+  ],
+  [
+   "blocks.21.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   21,
+   0.015045256353914738,
+   0.016723500564694405,
+   6.569454193115234
+  ],
+  [
+   "blocks.21.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   21,
+   0.015254847705364227,
+   0.017311450093984604,
+   6.836225509643555
+  ],
+  [
+   "blocks.21.mod.lin",
+   "blocks.mod_norm",
+   21,
+   0.20298515260219574,
+   0.589896559715271,
+   68.98542785644531
+  ],
+  [
+   "blocks.21.postnorm.scale",
+   "blocks.mod_norm",
+   21,
+   0.0918089896440506,
+   0.11846711486577988,
+   14.767601013183594
+  ],
+  [
+   "blocks.21.prenorm.scale",
+   "blocks.mod_norm",
+   21,
+   0.08777802437543869,
+   0.1050625741481781,
+   17.31607437133789
+  ],
+  [
+   "blocks.22.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   22,
+   0.01945587992668152,
+   0.02190757729113102,
+   7.332169532775879
+  ],
+  [
+   "blocks.22.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   22,
+   0.018476996570825577,
+   0.02115330658853054,
+   7.753250598907471
+  ],
+  [
+   "blocks.22.mod.lin",
+   "blocks.mod_norm",
+   22,
+   0.1918305605649948,
+   0.5813238620758057,
+   63.89826202392578
+  ],
+  [
+   "blocks.22.postnorm.scale",
+   "blocks.mod_norm",
+   22,
+   0.08705765008926392,
+   0.11216315627098083,
+   16.567764282226562
+  ],
+  [
+   "blocks.22.prenorm.scale",
+   "blocks.mod_norm",
+   22,
+   0.08620686829090118,
+   0.10563943535089493,
+   20.584096908569336
+  ],
+  [
+   "blocks.23.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   23,
+   0.013178176246583462,
+   0.015362999401986599,
+   7.305541515350342
+  ],
+  [
+   "blocks.23.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   23,
+   0.014852345921099186,
+   0.016492541879415512,
+   7.533968448638916
+  ],
+  [
+   "blocks.23.mod.lin",
+   "blocks.mod_norm",
+   23,
+   0.19991092383861542,
+   0.6131322979927063,
+   79.31484985351562
+  ],
+  [
+   "blocks.23.postnorm.scale",
+   "blocks.mod_norm",
+   23,
+   0.08133244514465332,
+   0.10598611831665039,
+   14.857329368591309
+  ],
+  [
+   "blocks.23.prenorm.scale",
+   "blocks.mod_norm",
+   23,
+   0.07555357366800308,
+   0.09537429362535477,
+   18.336872100830078
+  ],
+  [
+   "blocks.24.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   24,
+   0.018451211974024773,
+   0.020632373169064522,
+   7.45113468170166
+  ],
+  [
+   "blocks.24.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   24,
+   0.01732608489692211,
+   0.020989390090107918,
+   7.733476638793945
+  ],
+  [
+   "blocks.24.mod.lin",
+   "blocks.mod_norm",
+   24,
+   0.19562125205993652,
+   0.6497928500175476,
+   83.546630859375
+  ],
+  [
+   "blocks.24.postnorm.scale",
+   "blocks.mod_norm",
+   24,
+   0.07879169285297394,
+   0.11061379313468933,
+   16.88155746459961
+  ],
+  [
+   "blocks.24.prenorm.scale",
+   "blocks.mod_norm",
+   24,
+   0.08034291863441467,
+   0.09980214387178421,
+   23.659404754638672
+  ],
+  [
+   "blocks.25.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   25,
+   0.016155200079083443,
+   0.020324964076280594,
+   7.323760509490967
+  ],
+  [
+   "blocks.25.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   25,
+   0.01767333410680294,
+   0.020546723157167435,
+   7.748880386352539
+  ],
+  [
+   "blocks.25.mod.lin",
+   "blocks.mod_norm",
+   25,
+   0.19482284784317017,
+   0.6917319297790527,
+   93.68089294433594
+  ],
+  [
+   "blocks.25.postnorm.scale",
+   "blocks.mod_norm",
+   25,
+   0.07200080156326294,
+   0.11133798956871033,
+   18.847644805908203
+  ],
+  [
+   "blocks.25.prenorm.scale",
+   "blocks.mod_norm",
+   25,
+   0.07494474202394485,
+   0.09989965707063675,
+   26.775936126708984
+  ],
+  [
+   "blocks.26.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   26,
+   0.021136224269866943,
+   0.024060886353254318,
+   8.705924034118652
+  ],
+  [
+   "blocks.26.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   26,
+   0.020553337410092354,
+   0.023951634764671326,
+   8.798172950744629
+  ],
+  [
+   "blocks.26.mod.lin",
+   "blocks.mod_norm",
+   26,
+   0.20174071192741394,
+   0.6697579622268677,
+   103.57685089111328
+  ],
+  [
+   "blocks.26.postnorm.scale",
+   "blocks.mod_norm",
+   26,
+   0.07518468797206879,
+   0.12758076190948486,
+   23.295459747314453
+  ],
+  [
+   "blocks.26.prenorm.scale",
+   "blocks.mod_norm",
+   26,
+   0.0701800063252449,
+   0.09341847896575928,
+   23.614364624023438
+  ],
+  [
+   "blocks.27.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   27,
+   0.008869510143995285,
+   0.016491418704390526,
+   4.130311012268066
+  ],
+  [
+   "blocks.27.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   27,
+   0.008984421379864216,
+   0.01578507572412491,
+   4.177541255950928
+  ],
+  [
+   "blocks.27.mod.lin",
+   "blocks.mod_norm",
+   27,
+   0.13242891430854797,
+   0.4913785755634308,
+   64.17955017089844
+  ],
+  [
+   "blocks.27.postnorm.scale",
+   "blocks.mod_norm",
+   27,
+   0.06804919987916946,
+   0.12247912585735321,
+   27.713510513305664
+  ],
+  [
+   "blocks.27.prenorm.scale",
+   "blocks.mod_norm",
+   27,
+   0.05635816231369972,
+   0.09283246099948883,
+   20.62446403503418
+  ],
+  [
+   "blocks.3.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   3,
+   0.012906013987958431,
+   0.013094514608383179,
+   3.9375596046447754
+  ],
+  [
+   "blocks.3.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   3,
+   0.012986029498279095,
+   0.014489839784801006,
+   4.055482387542725
+  ],
+  [
+   "blocks.3.mod.lin",
+   "blocks.mod_norm",
+   3,
+   0.21974271535873413,
+   0.4138544499874115,
+   29.704912185668945
+  ],
+  [
+   "blocks.3.postnorm.scale",
+   "blocks.mod_norm",
+   3,
+   0.09931144118309021,
+   0.11029454320669174,
+   22.04555892944336
+  ],
+  [
+   "blocks.3.prenorm.scale",
+   "blocks.mod_norm",
+   3,
+   0.09546180069446564,
+   0.10516582429409027,
+   20.255765914916992
+  ],
+  [
+   "blocks.4.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   4,
+   0.014967991039156914,
+   0.01565510220825672,
+   4.279272556304932
+  ],
+  [
+   "blocks.4.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   4,
+   0.014901750721037388,
+   0.01506409328430891,
+   4.2223076820373535
+  ],
+  [
+   "blocks.4.mod.lin",
+   "blocks.mod_norm",
+   4,
+   0.2147156149148941,
+   0.3954937160015106,
+   26.20426368713379
+  ],
+  [
+   "blocks.4.postnorm.scale",
+   "blocks.mod_norm",
+   4,
+   0.09778457134962082,
+   0.1081428974866867,
+   21.316068649291992
+  ],
+  [
+   "blocks.4.prenorm.scale",
+   "blocks.mod_norm",
+   4,
+   0.09373563528060913,
+   0.10341060906648636,
+   18.421924591064453
+  ],
+  [
+   "blocks.5.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   5,
+   0.014783784747123718,
+   0.016571547836065292,
+   3.723385810852051
+  ],
+  [
+   "blocks.5.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   5,
+   0.014913740567862988,
+   0.01689193956553936,
+   3.7378008365631104
+  ],
+  [
+   "blocks.5.mod.lin",
+   "blocks.mod_norm",
+   5,
+   0.2113429754972458,
+   0.37559911608695984,
+   23.773305892944336
+  ],
+  [
+   "blocks.5.postnorm.scale",
+   "blocks.mod_norm",
+   5,
+   0.09818979352712631,
+   0.10852184146642685,
+   20.69774055480957
+  ],
+  [
+   "blocks.5.prenorm.scale",
+   "blocks.mod_norm",
+   5,
+   0.0951128676533699,
+   0.10438500344753265,
+   17.718902587890625
+  ],
+  [
+   "blocks.6.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   6,
+   0.014629365876317024,
+   0.016470447182655334,
+   4.578693866729736
+  ],
+  [
+   "blocks.6.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   6,
+   0.014736405573785305,
+   0.016830917447805405,
+   4.6385602951049805
+  ],
+  [
+   "blocks.6.mod.lin",
+   "blocks.mod_norm",
+   6,
+   0.21126903593540192,
+   0.36251839995384216,
+   21.35858154296875
+  ],
+  [
+   "blocks.6.postnorm.scale",
+   "blocks.mod_norm",
+   6,
+   0.09774760901927948,
+   0.10827087610960007,
+   19.927471160888672
+  ],
+  [
+   "blocks.6.prenorm.scale",
+   "blocks.mod_norm",
+   6,
+   0.09517454355955124,
+   0.10537739843130112,
+   16.18202781677246
+  ],
+  [
+   "blocks.7.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   7,
+   0.01521243341267109,
+   0.016639307141304016,
+   4.521349906921387
+  ],
+  [
+   "blocks.7.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   7,
+   0.01476631872355938,
+   0.016025369986891747,
+   4.606945514678955
+  ],
+  [
+   "blocks.7.mod.lin",
+   "blocks.mod_norm",
+   7,
+   0.20950566232204437,
+   0.36154264211654663,
+   21.481014251708984
+  ],
+  [
+   "blocks.7.postnorm.scale",
+   "blocks.mod_norm",
+   7,
+   0.09711447358131409,
+   0.10819289833307266,
+   19.45230484008789
+  ],
+  [
+   "blocks.7.prenorm.scale",
+   "blocks.mod_norm",
+   7,
+   0.09450370073318481,
+   0.10588280856609344,
+   16.687000274658203
+  ],
+  [
+   "blocks.8.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   8,
+   0.013945745304226875,
+   0.01684771664440632,
+   4.78899621963501
+  ],
+  [
+   "blocks.8.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   8,
+   0.013853074051439762,
+   0.01614871434867382,
+   4.875405311584473
+  ],
+  [
+   "blocks.8.mod.lin",
+   "blocks.mod_norm",
+   8,
+   0.21020857989788055,
+   0.37721362709999084,
+   23.193359375
+  ],
+  [
+   "blocks.8.postnorm.scale",
+   "blocks.mod_norm",
+   8,
+   0.09856823086738586,
+   0.11076845973730087,
+   19.408750534057617
+  ],
+  [
+   "blocks.8.prenorm.scale",
+   "blocks.mod_norm",
+   8,
+   0.09556844085454941,
+   0.10590004920959473,
+   16.25075912475586
+  ],
+  [
+   "blocks.9.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   9,
+   0.01433330588042736,
+   0.01627567782998085,
+   4.9560441970825195
+  ],
+  [
+   "blocks.9.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   9,
+   0.015508681535720825,
+   0.017178719863295555,
+   4.9913649559021
+  ],
+  [
+   "blocks.9.mod.lin",
+   "blocks.mod_norm",
+   9,
+   0.2117048054933548,
+   0.41812965273857117,
+   30.715511322021484
+  ],
+  [
+   "blocks.9.postnorm.scale",
+   "blocks.mod_norm",
+   9,
+   0.10116476565599442,
+   0.11423644423484802,
+   19.119657516479492
+  ],
+  [
+   "blocks.9.prenorm.scale",
+   "blocks.mod_norm",
+   9,
+   0.09587819129228592,
+   0.10789734125137329,
+   17.126562118530273
+  ],
+  [
+   "first.bias",
+   "projections",
+   null,
+   0.029771823436021805,
+   0.12840868532657623,
+   10.585444450378418
+  ],
+  [
+   "last.linear.bias",
+   "projections",
+   null,
+   0.002264241687953472,
+   0.009008591994643211,
+   0.6592915058135986
+  ],
+  [
+   "last.modulation.lin",
+   "projections",
+   null,
+   0.06899519264698029,
+   0.33902016282081604,
+   62.1174430847168
+  ],
+  [
+   "last.norm.scale",
+   "projections",
+   null,
+   0.051833946257829666,
+   0.08327239006757736,
+   38.07622528076172
+  ],
+  [
+   "tmlp.0.bias",
+   "projections",
+   null,
+   0.013086055405437946,
+   0.03632351756095886,
+   0.4567711651325226
+  ],
+  [
+   "tmlp.2.bias",
+   "projections",
+   null,
+   0.0487399697303772,
+   0.06393599510192871,
+   1.757811188697815
+  ],
+  [
+   "tproj.1.bias",
+   "projections",
+   null,
+   0.18848630785942078,
+   0.36180055141448975,
+   21.035490036010742
+  ],
+  [
+   "txtfusion.layerwise_blocks.0.attn.qknorm.knorm.scale",
+   "txtfusion",
+   null,
+   0.01324718352407217,
+   0.013190258294343948,
+   2.2235395908355713
+  ],
+  [
+   "txtfusion.layerwise_blocks.0.attn.qknorm.qnorm.scale",
+   "txtfusion",
+   null,
+   0.013874179683625698,
+   0.01398311648517847,
+   2.223944902420044
+  ],
+  [
+   "txtfusion.layerwise_blocks.0.postnorm.scale",
+   "txtfusion",
+   null,
+   0.06344523280858994,
+   0.070796899497509,
+   24.716766357421875
+  ],
+  [
+   "txtfusion.layerwise_blocks.0.prenorm.scale",
+   "txtfusion",
+   null,
+   0.06690220534801483,
+   0.07279745489358902,
+   25.476516723632812
+  ],
+  [
+   "txtfusion.layerwise_blocks.1.attn.qknorm.knorm.scale",
+   "txtfusion",
+   null,
+   0.013175488449633121,
+   0.01464024931192398,
+   0.952763557434082
+  ],
+  [
+   "txtfusion.layerwise_blocks.1.attn.qknorm.qnorm.scale",
+   "txtfusion",
+   null,
+   0.012862635776400566,
+   0.014437849633395672,
+   0.9525251984596252
+  ],
+  [
+   "txtfusion.layerwise_blocks.1.postnorm.scale",
+   "txtfusion",
+   null,
+   0.06869279593229294,
+   0.07588961720466614,
+   25.67473030090332
+  ],
+  [
+   "txtfusion.layerwise_blocks.1.prenorm.scale",
+   "txtfusion",
+   null,
+   0.0561104379594326,
+   0.06371037662029266,
+   7.975528240203857
+  ],
+  [
+   "txtfusion.refiner_blocks.0.attn.qknorm.knorm.scale",
+   "txtfusion",
+   null,
+   0.014577723108232021,
+   0.016059672459959984,
+   2.2633605003356934
+  ],
+  [
+   "txtfusion.refiner_blocks.0.attn.qknorm.qnorm.scale",
+   "txtfusion",
+   null,
+   0.01465449295938015,
+   0.01590721681714058,
+   2.26230788230896
+  ],
+  [
+   "txtfusion.refiner_blocks.0.postnorm.scale",
+   "txtfusion",
+   null,
+   0.06454315036535263,
+   0.07115784287452698,
+   19.0903263092041
+  ],
+  [
+   "txtfusion.refiner_blocks.0.prenorm.scale",
+   "txtfusion",
+   null,
+   0.05941711366176605,
+   0.06602150946855545,
+   8.156386375427246
+  ],
+  [
+   "txtfusion.refiner_blocks.1.attn.qknorm.knorm.scale",
+   "txtfusion",
+   null,
+   0.013003144413232803,
+   0.014955323189496994,
+   1.7199318408966064
+  ],
+  [
+   "txtfusion.refiner_blocks.1.attn.qknorm.qnorm.scale",
+   "txtfusion",
+   null,
+   0.013043377548456192,
+   0.015170824714004993,
+   1.7190332412719727
+  ],
+  [
+   "txtfusion.refiner_blocks.1.postnorm.scale",
+   "txtfusion",
+   null,
+   0.060097258538007736,
+   0.06815437227487564,
+   15.967041969299316
+  ],
+  [
+   "txtfusion.refiner_blocks.1.prenorm.scale",
+   "txtfusion",
+   null,
+   0.05907236784696579,
+   0.06657199561595917,
+   6.411360740661621
+  ],
+  [
+   "txtmlp.0.scale",
+   "projections",
+   null,
+   0.06550029665231705,
+   0.07240696251392365,
+   12.049735069274902
+  ],
+  [
+   "txtmlp.1.bias",
+   "projections",
+   null,
+   0.09766286611557007,
+   0.12869805097579956,
+   2.8169314861297607
+  ],
+  [
+   "txtmlp.3.bias",
+   "projections",
+   null,
+   0.06703841686248779,
+   0.12181336432695389,
+   7.406499862670898
+  ]
+ ],
+ "candidates": [
+  {
+   "label": "add B minus A at 0.2 (B's extra part only)",
+   "goal": "add_content",
+   "steps": [
+    {
+     "function": "ckpt_merge",
+     "A": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\anterosXXXKrea2_unaligned.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "B": {
+      "file": "S:\\SwarmUI\\.models - move out!\\Anteros\\anterosXXXKrea2_raw.safetensors",
+      "weight": 0.2,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "C": null,
+     "loras": [],
+     "options": {
+      "method": "add_difference",
+      "params": {
+       "density": 0.2,
+       "lambda": 1.0,
+       "p": 0.5,
+       "seed": 0,
+       "beta": 0.0,
+       "gamma": 1.0,
+       "dare_ties": false
+      },
+      "output_format": "keep",
+      "passthrough": "official",
+      "fp8_layer_set": "official",
+      "int8_clip": "mse",
+      "keep_metadata": true,
+      "lora_mode": "after",
+      "output_as_lora": false,
+      "lora_out": {
+       "rank": 32,
+       "naming": "comfy",
+       "dtype": "fp16",
+       "method": "randomized"
+      },
+      "block_count": 28,
+      "use_gpu": true
+     },
+     "output": null
+    }
+   ],
+   "rationale": [
+    "B's change carries A's change in full (coefficient 1.00) plus an extra part; B minus A isolates that part",
+    "the weights are scaled to the size of the extra part against A's own change"
+   ],
+   "expect": "A's subjects, settings and rendering on every seed, with B's change appearing on the same seeds in proportion to the weight",
+   "compare": "fixed seed grids of A alone and of each weight; if faces or settings converge on one type the weight is too high",
+   "flags": [
+    "B's change is diffuse (memorization shaped): expect seed collapse at high doses; weights halved, watch identity variety"
+   ]
+  },
+  {
+   "label": "add B minus A at 0.4 (B's extra part only)",
+   "goal": "add_content",
+   "steps": [
+    {
+     "function": "ckpt_merge",
+     "A": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\anterosXXXKrea2_unaligned.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "B": {
+      "file": "S:\\SwarmUI\\.models - move out!\\Anteros\\anterosXXXKrea2_raw.safetensors",
+      "weight": 0.4,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "C": null,
+     "loras": [],
+     "options": {
+      "method": "add_difference",
+      "params": {
+       "density": 0.2,
+       "lambda": 1.0,
+       "p": 0.5,
+       "seed": 0,
+       "beta": 0.0,
+       "gamma": 1.0,
+       "dare_ties": false
+      },
+      "output_format": "keep",
+      "passthrough": "official",
+      "fp8_layer_set": "official",
+      "int8_clip": "mse",
+      "keep_metadata": true,
+      "lora_mode": "after",
+      "output_as_lora": false,
+      "lora_out": {
+       "rank": 32,
+       "naming": "comfy",
+       "dtype": "fp16",
+       "method": "randomized"
+      },
+      "block_count": 28,
+      "use_gpu": true
+     },
+     "output": null
+    }
+   ],
+   "rationale": [
+    "B's change carries A's change in full (coefficient 1.00) plus an extra part; B minus A isolates that part",
+    "the weights are scaled to the size of the extra part against A's own change"
+   ],
+   "expect": "A's subjects, settings and rendering on every seed, with B's change appearing on the same seeds in proportion to the weight",
+   "compare": "fixed seed grids of A alone and of each weight; if faces or settings converge on one type the weight is too high",
+   "flags": [
+    "B's change is diffuse (memorization shaped): expect seed collapse at high doses; weights halved, watch identity variety"
+   ]
+  },
+  {
+   "label": "add B minus A at 0.75 (B's extra part only)",
+   "goal": "add_content",
+   "steps": [
+    {
+     "function": "ckpt_merge",
+     "A": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\anterosXXXKrea2_unaligned.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "B": {
+      "file": "S:\\SwarmUI\\.models - move out!\\Anteros\\anterosXXXKrea2_raw.safetensors",
+      "weight": 0.75,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "C": null,
+     "loras": [],
+     "options": {
+      "method": "add_difference",
+      "params": {
+       "density": 0.2,
+       "lambda": 1.0,
+       "p": 0.5,
+       "seed": 0,
+       "beta": 0.0,
+       "gamma": 1.0,
+       "dare_ties": false
+      },
+      "output_format": "keep",
+      "passthrough": "official",
+      "fp8_layer_set": "official",
+      "int8_clip": "mse",
+      "keep_metadata": true,
+      "lora_mode": "after",
+      "output_as_lora": false,
+      "lora_out": {
+       "rank": 32,
+       "naming": "comfy",
+       "dtype": "fp16",
+       "method": "randomized"
+      },
+      "block_count": 28,
+      "use_gpu": true
+     },
+     "output": null
+    }
+   ],
+   "rationale": [
+    "B's change carries A's change in full (coefficient 1.00) plus an extra part; B minus A isolates that part",
+    "the weights are scaled to the size of the extra part against A's own change"
+   ],
+   "expect": "A's subjects, settings and rendering on every seed, with B's change appearing on the same seeds in proportion to the weight",
+   "compare": "fixed seed grids of A alone and of each weight; if faces or settings converge on one type the weight is too high",
+   "flags": [
+    "B's change is diffuse (memorization shaped): expect seed collapse at high doses; weights halved, watch identity variety"
+   ]
+  }
+ ],
+ "notes": []
+}

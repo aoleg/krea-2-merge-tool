@@ -46,7 +46,7 @@ COS_ALIGNED = 0.50          # above: siblings
 CONTAIN_RANGE = (0.85, 1.15)  # projection coefficient near 1 = one delta carries the other in full
 CONTAIN_MIN_COS = 0.30
 EFF_CONCENTRATED = 0.08     # median effective rank over the smaller dimension
-EFF_DIFFUSE = 0.20
+EFF_DIFFUSE = 0.30            # the stable Unaligned change sits at 0.22, the collapsing anteros Raw extra at 0.48
 ZONE_FOCUS = 2.0            # energy share over parameter share
 NON_TARGET_WARN = 0.05      # share of the donor's energy outside the linears
 NB_FACTOR_TRIGGER = 2.0     # per zone equal contribution weights differing by more than this set the non block weight
@@ -206,7 +206,8 @@ class AdvisorReport:
             for key, lab in (("dA", "A's change"), ("dB", "B's change")):
                 s = f.get("structure", {}).get(key)
                 if s:
-                    lines.append(f"structure of {lab}: {s['class']} (median effective rank {(s['eff_over_dim'] or 0.0) * 100:.1f}% of the dimension, "
+                    lines.append(f"structure of {lab}: {s['class']} (median effective rank above the noise edge {(s['eff_over_dim'] or 0.0) * 100:.1f}% of the dimension"
+                                 + (f", {(s['eff_over_dim_raw'] or 0.0) * 100:.1f}% raw" if s.get('eff_over_dim_raw') is not None and s['noise'] > 0.01 else "") + ", "
                                  f"stable rank {s['stable']:.1f}, rank 64 keeps {s['e64'] * 100:.0f}%, rank 256 keeps {s['e256'] * 100:.0f}%, "
                                  f"noise {s['noise'] * 100:.1f}%)")
             z = f.get("zones", {})
@@ -467,7 +468,9 @@ def compute_features(rep: AdvisorReport) -> dict:
         if r is None or not r.modules:
             continue
         mods = [m for m in r.modules.values() if not m.all_zero]
-        eff = _median([m.effective_rank / m.max_rank for m in mods]) if mods else None
+        # the class comes from the directions above the noise edge: a quantized input adds a full rank noise
+        # tail that would read as diffuse structure (the int8 Unaligned case, 2026-09-15)
+        eff = _median([m.effective_rank_denoised() / m.max_rank for m in mods]) if mods else None
         tab = {row[0]: row for row in r.candidate_table()}
         e64 = tab.get(64, (None, None, None, None))[3] or 0.0
         e256 = tab.get(256, (None, None, None, None))[3] or 0.0
@@ -475,7 +478,9 @@ def compute_features(rep: AdvisorReport) -> dict:
         tot_e = sum(m.energy for m in mods)
         if tot_e > 0:
             noise = sum((1.0 - m.energy_above_noise) * m.energy for m in mods) / tot_e
-        f["structure"][key] = {"eff_over_dim": eff, "stable": _median([m.stable_rank for m in mods]) or 0.0,
+        f["structure"][key] = {"eff_over_dim": eff, "stable": _median([m.stable_rank_denoised() for m in mods]) or 0.0,
+                               "energy_at_rank": {str(rk): (row[3] or 0.0) for rk, row in tab.items()},
+                               "eff_over_dim_raw": _median([m.effective_rank / m.max_rank for m in mods]) if mods else None,
                                "e64": e64, "e256": e256, "noise": noise, "class": _cls_structure(eff)}
     f["non_target_share"] = rep.repB.outside_fraction if rep.repB is not None else _others_share(rep)
     r = rep.run
@@ -613,7 +618,7 @@ def propose(rep: AdvisorReport, goal: str, output_format: str = "keep") -> list:
                 w = ws[len(ws) // 2]
                 preset = "CHARACTER" if diffuse else {"composition": "COMPOSITION", "style": "STYLE", "character": "CHARACTER"}[f["zone_focus"]]
                 mod = "Suppress" if diffuse else "Emphasize"
-                add(f"shaped: add difference at {w:g}, {preset} {mod.lower()}d", [_ckpt_step(A, B, C if has_c else None, w, method, shaping=_shaped(preset, mod, 0.5, non_block=nb), output_format=output_format)],
+                add(f"shaped: add difference at {w:g}, {preset} {'suppressed' if mod == 'Suppress' else 'emphasized'}", [_ckpt_step(A, B, C if has_c else None, w, method, shaping=_shaped(preset, mod, 0.5, non_block=nb), output_format=output_format)],
                     ["a diffuse change collapses identities first; suppressing the character blocks keeps B's other effects" if diffuse
                      else f"B's change concentrates on the {f['zone_focus']} blocks (x{f['zones'][f['zone_focus']]['conc']:.1f}); emphasizing them spends the dose where the change is"])
     elif goal == "blend":
@@ -656,16 +661,16 @@ def propose(rep: AdvisorReport, goal: str, output_format: str = "keep") -> list:
             cands[-1].flags.append("B minus C does not look like a distillation (diffuse); check that B is Raw and C is Turbo")
     elif goal == "lora":
         base = C if has_c else A
-        if rep.repB is None:
+        if not sB:
             add("no spectra (quick depth)", [], ["run the advisor at full depth to size the rank"], "", "")
-        elif diffuse or (sB and sB["e256"] < 0.5):
+        elif diffuse or sB["e256"] < 0.5:
             add("no LoRA: B's change is diffuse", [_ckpt_step(A, B, C if has_c else None, round_step((w_eq or 0.5) * 0.5), output_format=output_format)],
                 [f"rank 256 keeps {sB['e256'] * 100:.0f}% of the change's energy and the effective rank is {sB['eff_over_dim'] * 100:.0f}% of the dimension: no rank below the weights reproduces it",
                  "a checkpoint merge at a low weight carries the change instead"], expect_keep, compare)
         else:
-            tab = {row[0]: row for row in rep.repB.candidate_table()}
-            rank = next((r for r in CANDIDATE_RANKS if (tab.get(r, (0, None, None, 0))[3] or 0.0) >= LORA_ENERGY), CANDIDATE_RANKS[-1])
-            e = tab.get(rank, (0, None, None, 0))[3] or 0.0
+            energy = sB.get("energy_at_rank", {})
+            rank = next((r for r in CANDIDATE_RANKS if energy.get(str(r), 0.0) >= LORA_ENERGY), CANDIDATE_RANKS[-1])
+            e = energy.get(str(rank), 0.0)
             add(f"extract at rank {rank}", [_extract_step(base, B, rank)],
                 [f"rank {rank} is the smallest candidate rank whose median denoised energy reaches {LORA_ENERGY * 100:.0f}% ({e * 100:.0f}%)",
                  f"B's change is {sB['class']} (effective rank {sB['eff_over_dim'] * 100:.1f}% of the dimension)"],

@@ -1,0 +1,1883 @@
+{
+ "tool": "krea2_merge_tool 0.1.0",
+ "run": {
+  "function": "advise",
+  "A": "arthemyComicsKrea2_v11.safetensors",
+  "B": "raw.safetensors",
+  "C": "turbo.safetensors",
+  "A_format": "quantized int8_convrot:256",
+  "B_format": "plain BF16:256/F32:174",
+  "C_format": "plain BF16:256/F32:174",
+  "A_quantized": true,
+  "B_quantized": false,
+  "C_quantized": false,
+  "A_dtype": "BF16",
+  "B_dtype": "BF16",
+  "C_dtype": "BF16",
+  "depth": "full",
+  "targets": 264,
+  "others": 166,
+  "device": "cuda",
+  "timestamp": "2026-09-15 16:16:44",
+  "goal": "deturbo"
+ },
+ "label": "arthemyComicsKrea2_v11 + raw vs turbo",
+ "features": {
+  "groups": {
+   "blocks.attn": {
+    "nB": 40.32377179493152,
+    "relB": 0.01456737869572784,
+    "n": 3699376128,
+    "nA": 90.47195994162425,
+    "relA": 0.0326839291849186,
+    "rho": 0.4457046340208597,
+    "cos": 0.0340433698726511,
+    "c_a_on_b": 0.07638100947152777,
+    "c_b_on_a": 0.015173287709926719
+   },
+   "blocks.mlp": {
+    "nB": 56.68150454342147,
+    "relB": 0.014321441821289742,
+    "n": 8455716864,
+    "nA": 132.53739867803293,
+    "relA": 0.03348758399414844,
+    "rho": 0.42766422993645187,
+    "cos": 0.03339717246840611,
+    "c_a_on_b": 0.07809204074273106,
+    "c_b_on_a": 0.014282776045755768
+   },
+   "txtfusion": {
+    "nB": 9.836597947663563,
+    "relB": 0.00874215176126172,
+    "n": 343408652,
+    "nA": 38.973201815566185,
+    "relA": 0.034636939184333276,
+    "rho": 0.25239388834957754,
+    "cos": 0.08090057224131864,
+    "c_a_on_b": 0.3205330080309532,
+    "c_b_on_a": 0.02041880999769231
+   },
+   "projections": {
+    "nB": 5.421875024047983,
+    "relB": 0.008761180678905139,
+    "n": 320077824,
+    "nA": 18.989658661248452,
+    "relA": 0.030685294261489634,
+    "rho": 0.2855172449788273,
+    "cos": 0.08664211990564465,
+    "c_a_on_b": 0.3034566963269404,
+    "c_b_on_a": 0.02473781937458487
+   }
+  },
+  "overall": {
+   "nB": 70.46243621275096,
+   "relB": 0.014099375733008032,
+   "n": 12818579468,
+   "nA": 166.22531449766095,
+   "relA": 0.03326131328135707,
+   "rho": 0.4238971448223217,
+   "cos": 0.035433902023619505,
+   "c_a_on_b": 0.08359080134515126,
+   "c_b_on_a": 0.015020329897726198
+  },
+  "zones": {
+   "composition": {
+    "share": 0.23173957567417527,
+    "param_share": 0.33865723193720737,
+    "conc": 0.6842894638586771,
+    "nB": 33.92014955325716,
+    "relB": 0.011231826076702285,
+    "n": 4341104640,
+    "nA": 104.88389616053013,
+    "relA": 0.0347297313083001,
+    "rho": 0.32340665054376555,
+    "cos": 0.05875848412402143,
+    "c_a_on_b": 0.18168607239593498,
+    "c_b_on_a": 0.019002884541578797
+   },
+   "character": {
+    "share": 0.25585127469114116,
+    "param_share": 0.3047915087434866,
+    "conc": 0.8394304544306262,
+    "nB": 35.64112854986089,
+    "relB": 0.012148676567454957,
+    "n": 3906994176,
+    "nA": 78.54950057271,
+    "relA": 0.02677447420493357,
+    "rho": 0.45374099504132914,
+    "cos": 0.027159967028939767,
+    "c_a_on_b": 0.05985786456536926,
+    "c_b_on_a": 0.012323590465000821
+   },
+   "style": {
+    "share": 0.48699997874221407,
+    "param_share": 0.3047915087434866,
+    "conc": 1.5978134717397086,
+    "nB": 49.172481522215065,
+    "relB": 0.020780539025042455,
+    "n": 3906994176,
+    "nA": 92.63197002106601,
+    "relA": 0.039146738346318315,
+    "rho": 0.5308370480626985,
+    "cos": 0.019760726397949784,
+    "c_a_on_b": 0.03722559770473254,
+    "c_b_on_a": 0.010489725668662304
+   },
+   "non_block": {
+    "share": 0.025409170892469496,
+    "param_share": 0.05175975057581942,
+    "conc": 0.490905976358006,
+    "nB": 11.231891557541603,
+    "relB": 0.008746574798520937,
+    "n": 663486476,
+    "nA": 43.35340350915461,
+    "relA": 0.033760456519781205,
+    "rho": 0.25907750368825944,
+    "cos": 0.08201199052640439,
+    "c_a_on_b": 0.31655388584061345,
+    "c_b_on_a": 0.02124746177808603
+   }
+  },
+  "zone_focus": null,
+  "relation": "independent",
+  "containment": null,
+  "containment_text": "",
+  "w_eq": 2.3590628344976334,
+  "nb_factor": null,
+  "structure": {
+   "dA": {
+    "eff_over_dim": 0.2887890370103569,
+    "stable": 38.23834209229669,
+    "energy_at_rank": {
+     "8": 0.07571683244623678,
+     "16": 0.10945830892787471,
+     "32": 0.1580051900111962,
+     "64": 0.2287771377987406,
+     "128": 0.3313438645417004,
+     "256": 0.48487920708804977,
+     "512": 0.653624182549235,
+     "1024": 0.8334892353978285
+    },
+    "eff_over_dim_raw": 0.395348099683978,
+    "e64": 0.2287771377987406,
+    "e256": 0.48487920708804977,
+    "noise": 0.05988585582385851,
+    "class": "mixed"
+   },
+   "dB": {
+    "eff_over_dim": 0.030982061449872533,
+    "stable": 7.006855027310152,
+    "energy_at_rank": {
+     "8": 0.40562700611041996,
+     "16": 0.5146030344512107,
+     "32": 0.6379154989908717,
+     "64": 0.7238077616455691,
+     "128": 0.7884261066448097,
+     "256": 0.8519251782697012,
+     "512": 0.9132279156575853,
+     "1024": 0.9672818253142729
+    },
+    "eff_over_dim_raw": 0.036742758311155255,
+    "e64": 0.7238077616455691,
+    "e256": 0.8519251782697012,
+    "noise": 0.012327823792508217,
+    "class": "concentrated"
+   }
+  },
+  "non_target_share": 0.0001811623700780986,
+  "precision": {
+   "A": "quantized BF16",
+   "B": "plain BF16",
+   "C": "plain BF16",
+   "mismatch": true
+  }
+ },
+ "others": [
+  [
+   "blocks.0.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   0,
+   1.6748132705688477,
+   0.027567874640226364,
+   52.311763763427734
+  ],
+  [
+   "blocks.0.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   0,
+   1.6766777038574219,
+   0.027908816933631897,
+   52.36784744262695
+  ],
+  [
+   "blocks.0.mod.lin",
+   "blocks.mod_norm",
+   0,
+   1.8614431619644165,
+   0.14311166107654572,
+   55.82395553588867
+  ],
+  [
+   "blocks.0.postnorm.scale",
+   "blocks.mod_norm",
+   0,
+   1.0149308443069458,
+   0.054982755333185196,
+   30.282060623168945
+  ],
+  [
+   "blocks.0.prenorm.scale",
+   "blocks.mod_norm",
+   0,
+   1.3685122728347778,
+   0.05350356921553612,
+   41.091033935546875
+  ],
+  [
+   "blocks.1.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   1,
+   0.11458383500576019,
+   0.010600403882563114,
+   3.4635651111602783
+  ],
+  [
+   "blocks.1.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   1,
+   0.12490859627723694,
+   0.010557780042290688,
+   3.749300718307495
+  ],
+  [
+   "blocks.1.mod.lin",
+   "blocks.mod_norm",
+   1,
+   1.326658010482788,
+   0.138277068734169,
+   39.6162223815918
+  ],
+  [
+   "blocks.1.postnorm.scale",
+   "blocks.mod_norm",
+   1,
+   0.7768345475196838,
+   0.04268527403473854,
+   23.212976455688477
+  ],
+  [
+   "blocks.1.prenorm.scale",
+   "blocks.mod_norm",
+   1,
+   0.6697289943695068,
+   0.04668763652443886,
+   20.03843116760254
+  ],
+  [
+   "blocks.10.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   10,
+   0.009614587761461735,
+   0.013330725952982903,
+   5.677854537963867
+  ],
+  [
+   "blocks.10.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   10,
+   0.009507005102932453,
+   0.013103361241519451,
+   5.758983612060547
+  ],
+  [
+   "blocks.10.mod.lin",
+   "blocks.mod_norm",
+   10,
+   0.06838954985141754,
+   0.17734159529209137,
+   40.036407470703125
+  ],
+  [
+   "blocks.10.postnorm.scale",
+   "blocks.mod_norm",
+   10,
+   0.026332814246416092,
+   0.05912027135491371,
+   17.38420295715332
+  ],
+  [
+   "blocks.10.prenorm.scale",
+   "blocks.mod_norm",
+   10,
+   0.03218197450041771,
+   0.0598747655749321,
+   19.383182525634766
+  ],
+  [
+   "blocks.11.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   11,
+   0.01036228146404028,
+   0.017001871019601822,
+   5.590968608856201
+  ],
+  [
+   "blocks.11.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   11,
+   0.011051316745579243,
+   0.01762533001601696,
+   5.655646800994873
+  ],
+  [
+   "blocks.11.mod.lin",
+   "blocks.mod_norm",
+   11,
+   0.06685449928045273,
+   0.17375116050243378,
+   39.03378677368164
+  ],
+  [
+   "blocks.11.postnorm.scale",
+   "blocks.mod_norm",
+   11,
+   0.025968296453356743,
+   0.05892288684844971,
+   16.425220489501953
+  ],
+  [
+   "blocks.11.prenorm.scale",
+   "blocks.mod_norm",
+   11,
+   0.022189412266016006,
+   0.054501745849847794,
+   13.636865615844727
+  ],
+  [
+   "blocks.12.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   12,
+   0.010701628401875496,
+   0.018413862213492393,
+   7.016714096069336
+  ],
+  [
+   "blocks.12.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   12,
+   0.011981496587395668,
+   0.018900001421570778,
+   7.151267051696777
+  ],
+  [
+   "blocks.12.mod.lin",
+   "blocks.mod_norm",
+   12,
+   0.06980714946985245,
+   0.18306106328964233,
+   40.79064178466797
+  ],
+  [
+   "blocks.12.postnorm.scale",
+   "blocks.mod_norm",
+   12,
+   0.0237260852009058,
+   0.059549715369939804,
+   15.17475414276123
+  ],
+  [
+   "blocks.12.prenorm.scale",
+   "blocks.mod_norm",
+   12,
+   0.024691712111234665,
+   0.06906532496213913,
+   14.258866310119629
+  ],
+  [
+   "blocks.13.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   13,
+   0.01088582631200552,
+   0.01730765961110592,
+   6.2397894859313965
+  ],
+  [
+   "blocks.13.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   13,
+   0.011530369520187378,
+   0.01771228201687336,
+   6.450106143951416
+  ],
+  [
+   "blocks.13.mod.lin",
+   "blocks.mod_norm",
+   13,
+   0.07381119579076767,
+   0.16408464312553406,
+   43.718727111816406
+  ],
+  [
+   "blocks.13.postnorm.scale",
+   "blocks.mod_norm",
+   13,
+   0.023596815764904022,
+   0.062122732400894165,
+   14.282278060913086
+  ],
+  [
+   "blocks.13.prenorm.scale",
+   "blocks.mod_norm",
+   13,
+   0.022730201482772827,
+   0.05474343150854111,
+   13.48073959350586
+  ],
+  [
+   "blocks.14.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   14,
+   0.012616013176739216,
+   0.021969705820083618,
+   7.536461353302002
+  ],
+  [
+   "blocks.14.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   14,
+   0.013194113038480282,
+   0.022440750151872635,
+   7.719647407531738
+  ],
+  [
+   "blocks.14.mod.lin",
+   "blocks.mod_norm",
+   14,
+   0.07290588319301605,
+   0.16197097301483154,
+   44.2273063659668
+  ],
+  [
+   "blocks.14.postnorm.scale",
+   "blocks.mod_norm",
+   14,
+   0.024507878348231316,
+   0.061338555067777634,
+   14.305387496948242
+  ],
+  [
+   "blocks.14.prenorm.scale",
+   "blocks.mod_norm",
+   14,
+   0.022965537384152412,
+   0.058590665459632874,
+   13.241358757019043
+  ],
+  [
+   "blocks.15.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   15,
+   0.22740057110786438,
+   0.020220331847667694,
+   7.20265007019043
+  ],
+  [
+   "blocks.15.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   15,
+   0.23577311635017395,
+   0.02131756581366062,
+   7.492286205291748
+  ],
+  [
+   "blocks.15.mod.lin",
+   "blocks.mod_norm",
+   15,
+   1.5239218473434448,
+   0.16686901450157166,
+   47.11664581298828
+  ],
+  [
+   "blocks.15.postnorm.scale",
+   "blocks.mod_norm",
+   15,
+   0.45602500438690186,
+   0.06404101848602295,
+   14.128072738647461
+  ],
+  [
+   "blocks.15.prenorm.scale",
+   "blocks.mod_norm",
+   15,
+   0.47697684168815613,
+   0.06025129184126854,
+   14.734238624572754
+  ],
+  [
+   "blocks.16.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   16,
+   0.20851550996303558,
+   0.020778171718120575,
+   6.590009689331055
+  ],
+  [
+   "blocks.16.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   16,
+   0.21916472911834717,
+   0.023472363129258156,
+   6.865509033203125
+  ],
+  [
+   "blocks.16.mod.lin",
+   "blocks.mod_norm",
+   16,
+   1.4525691270828247,
+   0.17088603973388672,
+   44.94734573364258
+  ],
+  [
+   "blocks.16.postnorm.scale",
+   "blocks.mod_norm",
+   16,
+   0.44189509749412537,
+   0.06262601912021637,
+   13.73460865020752
+  ],
+  [
+   "blocks.16.prenorm.scale",
+   "blocks.mod_norm",
+   16,
+   0.4924382269382477,
+   0.06618952751159668,
+   15.236474990844727
+  ],
+  [
+   "blocks.17.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   17,
+   0.20483462512493134,
+   0.019045250490307808,
+   6.425158500671387
+  ],
+  [
+   "blocks.17.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   17,
+   0.21617838740348816,
+   0.019890667870640755,
+   6.726075172424316
+  ],
+  [
+   "blocks.17.mod.lin",
+   "blocks.mod_norm",
+   17,
+   1.694865107536316,
+   0.16015610098838806,
+   52.42570114135742
+  ],
+  [
+   "blocks.17.postnorm.scale",
+   "blocks.mod_norm",
+   17,
+   0.4274066090583801,
+   0.0661710649728775,
+   13.285573959350586
+  ],
+  [
+   "blocks.17.prenorm.scale",
+   "blocks.mod_norm",
+   17,
+   0.4715254008769989,
+   0.06142570450901985,
+   14.58316707611084
+  ],
+  [
+   "blocks.18.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   18,
+   0.24115726351737976,
+   0.01637505739927292,
+   7.540979862213135
+  ],
+  [
+   "blocks.18.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   18,
+   0.24606581032276154,
+   0.01683051511645317,
+   7.692660331726074
+  ],
+  [
+   "blocks.18.mod.lin",
+   "blocks.mod_norm",
+   18,
+   1.7760539054870605,
+   0.16101588308811188,
+   55.14058303833008
+  ],
+  [
+   "blocks.18.postnorm.scale",
+   "blocks.mod_norm",
+   18,
+   0.42695361375808716,
+   0.0667138621211052,
+   13.204501152038574
+  ],
+  [
+   "blocks.18.prenorm.scale",
+   "blocks.mod_norm",
+   18,
+   0.41003742814064026,
+   0.059084419161081314,
+   12.70097827911377
+  ],
+  [
+   "blocks.19.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   19,
+   0.25550416111946106,
+   0.0248944740742445,
+   7.917562484741211
+  ],
+  [
+   "blocks.19.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   19,
+   0.26805374026298523,
+   0.02707691863179207,
+   8.261486053466797
+  ],
+  [
+   "blocks.19.mod.lin",
+   "blocks.mod_norm",
+   19,
+   1.8542847633361816,
+   0.17007587850093842,
+   57.60044479370117
+  ],
+  [
+   "blocks.19.postnorm.scale",
+   "blocks.mod_norm",
+   19,
+   0.41268017888069153,
+   0.06792283058166504,
+   12.788087844848633
+  ],
+  [
+   "blocks.19.prenorm.scale",
+   "blocks.mod_norm",
+   19,
+   0.5210313200950623,
+   0.07415939122438431,
+   16.149547576904297
+  ],
+  [
+   "blocks.2.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   2,
+   0.14876684546470642,
+   0.008743533864617348,
+   4.427389621734619
+  ],
+  [
+   "blocks.2.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   2,
+   0.15174657106399536,
+   0.008560677990317345,
+   4.524608135223389
+  ],
+  [
+   "blocks.2.mod.lin",
+   "blocks.mod_norm",
+   2,
+   1.1916356086730957,
+   0.1243501752614975,
+   35.676021575927734
+  ],
+  [
+   "blocks.2.postnorm.scale",
+   "blocks.mod_norm",
+   2,
+   0.8081949949264526,
+   0.04182250797748566,
+   24.158414840698242
+  ],
+  [
+   "blocks.2.prenorm.scale",
+   "blocks.mod_norm",
+   2,
+   0.7740196585655212,
+   0.04380611702799797,
+   23.18149757385254
+  ],
+  [
+   "blocks.20.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   20,
+   0.3550073206424713,
+   0.01923665963113308,
+   8.166516304016113
+  ],
+  [
+   "blocks.20.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   20,
+   0.36388322710990906,
+   0.018657956272363663,
+   8.412687301635742
+  ],
+  [
+   "blocks.20.mod.lin",
+   "blocks.mod_norm",
+   20,
+   2.7202935218811035,
+   0.1573287546634674,
+   62.93463897705078
+  ],
+  [
+   "blocks.20.postnorm.scale",
+   "blocks.mod_norm",
+   20,
+   0.5641371011734009,
+   0.0639733150601387,
+   13.041733741760254
+  ],
+  [
+   "blocks.20.prenorm.scale",
+   "blocks.mod_norm",
+   20,
+   0.6671580672264099,
+   0.0635620504617691,
+   15.441823959350586
+  ],
+  [
+   "blocks.21.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   21,
+   0.28333580493927,
+   0.01824633777141571,
+   6.5723185539245605
+  ],
+  [
+   "blocks.21.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   21,
+   0.29567569494247437,
+   0.01842455379664898,
+   6.837967872619629
+  ],
+  [
+   "blocks.21.mod.lin",
+   "blocks.mod_norm",
+   21,
+   2.972132682800293,
+   0.16494151949882507,
+   68.95420837402344
+  ],
+  [
+   "blocks.21.postnorm.scale",
+   "blocks.mod_norm",
+   21,
+   0.6371559500694275,
+   0.07251346111297607,
+   14.745996475219727
+  ],
+  [
+   "blocks.21.prenorm.scale",
+   "blocks.mod_norm",
+   21,
+   0.7481961250305176,
+   0.06256910413503647,
+   17.306819915771484
+  ],
+  [
+   "blocks.22.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   22,
+   0.3167892396450043,
+   0.020736483857035637,
+   7.333025932312012
+  ],
+  [
+   "blocks.22.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   22,
+   0.3345993757247925,
+   0.021143309772014618,
+   7.752871036529541
+  ],
+  [
+   "blocks.22.mod.lin",
+   "blocks.mod_norm",
+   22,
+   2.758617877960205,
+   0.16221420466899872,
+   63.85585403442383
+  ],
+  [
+   "blocks.22.postnorm.scale",
+   "blocks.mod_norm",
+   22,
+   0.713780403137207,
+   0.06684942543506622,
+   16.540950775146484
+  ],
+  [
+   "blocks.22.prenorm.scale",
+   "blocks.mod_norm",
+   22,
+   0.8907461166381836,
+   0.06972017884254456,
+   20.56130599975586
+  ],
+  [
+   "blocks.23.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   23,
+   0.3151342570781708,
+   0.015739092603325844,
+   7.304576873779297
+  ],
+  [
+   "blocks.23.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   23,
+   0.32580670714378357,
+   0.015230375342071056,
+   7.532234191894531
+  ],
+  [
+   "blocks.23.mod.lin",
+   "blocks.mod_norm",
+   23,
+   3.425638437271118,
+   0.15830479562282562,
+   79.25615692138672
+  ],
+  [
+   "blocks.23.postnorm.scale",
+   "blocks.mod_norm",
+   23,
+   0.6409836411476135,
+   0.05965263396501541,
+   14.838184356689453
+  ],
+  [
+   "blocks.23.prenorm.scale",
+   "blocks.mod_norm",
+   23,
+   0.7892434597015381,
+   0.06597777456045151,
+   18.315425872802734
+  ],
+  [
+   "blocks.24.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   24,
+   0.22138378024101257,
+   0.014635272324085236,
+   7.452027797698975
+  ],
+  [
+   "blocks.24.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   24,
+   0.2268548607826233,
+   0.014676559716463089,
+   7.733589172363281
+  ],
+  [
+   "blocks.24.mod.lin",
+   "blocks.mod_norm",
+   24,
+   2.4657065868377686,
+   0.1391124427318573,
+   83.49406433105469
+  ],
+  [
+   "blocks.24.postnorm.scale",
+   "blocks.mod_norm",
+   24,
+   0.49644458293914795,
+   0.06053943559527397,
+   16.85841941833496
+  ],
+  [
+   "blocks.24.prenorm.scale",
+   "blocks.mod_norm",
+   24,
+   0.698042631149292,
+   0.06252746284008026,
+   23.639331817626953
+  ],
+  [
+   "blocks.25.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   25,
+   0.2179206907749176,
+   0.0176836084574461,
+   7.3273186683654785
+  ],
+  [
+   "blocks.25.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   25,
+   0.23043544590473175,
+   0.017999449744820595,
+   7.751213550567627
+  ],
+  [
+   "blocks.25.mod.lin",
+   "blocks.mod_norm",
+   25,
+   2.7607462406158447,
+   0.13348737359046936,
+   93.6192398071289
+  ],
+  [
+   "blocks.25.postnorm.scale",
+   "blocks.mod_norm",
+   25,
+   0.5535860657691956,
+   0.05601029098033905,
+   18.82358169555664
+  ],
+  [
+   "blocks.25.prenorm.scale",
+   "blocks.mod_norm",
+   25,
+   0.7887850999832153,
+   0.05740064010024071,
+   26.758014678955078
+  ],
+  [
+   "blocks.26.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   26,
+   0.2602735161781311,
+   0.016210319474339485,
+   8.702146530151367
+  ],
+  [
+   "blocks.26.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   26,
+   0.2664630711078644,
+   0.01599913090467453,
+   8.793805122375488
+  ],
+  [
+   "blocks.26.mod.lin",
+   "blocks.mod_norm",
+   26,
+   3.04667067527771,
+   0.12671993672847748,
+   103.51288604736328
+  ],
+  [
+   "blocks.26.postnorm.scale",
+   "blocks.mod_norm",
+   26,
+   0.6864053606987,
+   0.05512414127588272,
+   23.275182723999023
+  ],
+  [
+   "blocks.26.prenorm.scale",
+   "blocks.mod_norm",
+   26,
+   0.6963673233985901,
+   0.046770136803388596,
+   23.60132598876953
+  ],
+  [
+   "blocks.27.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   27,
+   0.12276165932416916,
+   0.017062949016690254,
+   4.134310722351074
+  ],
+  [
+   "blocks.27.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   27,
+   0.12316408008337021,
+   0.016718916594982147,
+   4.181083679199219
+  ],
+  [
+   "blocks.27.mod.lin",
+   "blocks.mod_norm",
+   27,
+   1.8916640281677246,
+   0.0840323269367218,
+   64.1367416381836
+  ],
+  [
+   "blocks.27.postnorm.scale",
+   "blocks.mod_norm",
+   27,
+   0.8176569938659668,
+   0.03487604856491089,
+   27.704931259155273
+  ],
+  [
+   "blocks.27.prenorm.scale",
+   "blocks.mod_norm",
+   27,
+   0.6095643639564514,
+   0.052688006311655045,
+   20.604454040527344
+  ],
+  [
+   "blocks.3.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   3,
+   0.13129182159900665,
+   0.008420373313128948,
+   3.9352047443389893
+  ],
+  [
+   "blocks.3.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   3,
+   0.13632434606552124,
+   0.00827446673065424,
+   4.052987575531006
+  ],
+  [
+   "blocks.3.mod.lin",
+   "blocks.mod_norm",
+   3,
+   0.9907599091529846,
+   0.12826314568519592,
+   29.677356719970703
+  ],
+  [
+   "blocks.3.postnorm.scale",
+   "blocks.mod_norm",
+   3,
+   0.735243022441864,
+   0.043033141642808914,
+   22.030208587646484
+  ],
+  [
+   "blocks.3.prenorm.scale",
+   "blocks.mod_norm",
+   3,
+   0.6759438514709473,
+   0.045900970697402954,
+   20.2370662689209
+  ],
+  [
+   "blocks.4.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   4,
+   0.14112843573093414,
+   0.008608244359493256,
+   4.275954723358154
+  ],
+  [
+   "blocks.4.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   4,
+   0.1408940702676773,
+   0.008335428312420845,
+   4.219294548034668
+  ],
+  [
+   "blocks.4.mod.lin",
+   "blocks.mod_norm",
+   4,
+   0.8758441805839539,
+   0.12749798595905304,
+   26.179607391357422
+  ],
+  [
+   "blocks.4.postnorm.scale",
+   "blocks.mod_norm",
+   4,
+   0.7114976644515991,
+   0.04494941234588623,
+   21.30043601989746
+  ],
+  [
+   "blocks.4.prenorm.scale",
+   "blocks.mod_norm",
+   4,
+   0.6181703805923462,
+   0.04410608485341072,
+   18.40744400024414
+  ],
+  [
+   "blocks.5.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   5,
+   0.12127391248941422,
+   0.0075140297412872314,
+   3.723529100418091
+  ],
+  [
+   "blocks.5.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   5,
+   0.12073330581188202,
+   0.007452042307704687,
+   3.7377727031707764
+  ],
+  [
+   "blocks.5.mod.lin",
+   "blocks.mod_norm",
+   5,
+   0.7674822211265564,
+   0.1303236484527588,
+   23.751230239868164
+  ],
+  [
+   "blocks.5.postnorm.scale",
+   "blocks.mod_norm",
+   5,
+   0.6662969589233398,
+   0.04640788957476616,
+   20.681825637817383
+  ],
+  [
+   "blocks.5.prenorm.scale",
+   "blocks.mod_norm",
+   5,
+   0.5717582702636719,
+   0.0449225977063179,
+   17.704864501953125
+  ],
+  [
+   "blocks.6.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   6,
+   0.14746108651161194,
+   0.010175042785704136,
+   4.573041915893555
+  ],
+  [
+   "blocks.6.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   6,
+   0.14801794290542603,
+   0.010853616520762444,
+   4.632649898529053
+  ],
+  [
+   "blocks.6.mod.lin",
+   "blocks.mod_norm",
+   6,
+   0.6918537020683289,
+   0.1377672553062439,
+   21.33872413635254
+  ],
+  [
+   "blocks.6.postnorm.scale",
+   "blocks.mod_norm",
+   6,
+   0.6421791911125183,
+   0.0480632521212101,
+   19.914194107055664
+  ],
+  [
+   "blocks.6.prenorm.scale",
+   "blocks.mod_norm",
+   6,
+   0.5242918729782104,
+   0.04572566598653793,
+   16.172452926635742
+  ],
+  [
+   "blocks.7.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   7,
+   0.1467246413230896,
+   0.009842464700341225,
+   4.519838333129883
+  ],
+  [
+   "blocks.7.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   7,
+   0.14845529198646545,
+   0.009524399414658546,
+   4.60543966293335
+  ],
+  [
+   "blocks.7.mod.lin",
+   "blocks.mod_norm",
+   7,
+   0.6945935487747192,
+   0.1419191211462021,
+   21.461776733398438
+  ],
+  [
+   "blocks.7.postnorm.scale",
+   "blocks.mod_norm",
+   7,
+   0.6261008381843567,
+   0.04947756230831146,
+   19.441579818725586
+  ],
+  [
+   "blocks.7.prenorm.scale",
+   "blocks.mod_norm",
+   7,
+   0.539230227470398,
+   0.04740920290350914,
+   16.6739559173584
+  ],
+  [
+   "blocks.8.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   8,
+   0.1548996865749359,
+   0.010998093523085117,
+   4.784192085266113
+  ],
+  [
+   "blocks.8.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   8,
+   0.1573968231678009,
+   0.011392989195883274,
+   4.870235919952393
+  ],
+  [
+   "blocks.8.mod.lin",
+   "blocks.mod_norm",
+   8,
+   0.7522118091583252,
+   0.1418662667274475,
+   23.176372528076172
+  ],
+  [
+   "blocks.8.postnorm.scale",
+   "blocks.mod_norm",
+   8,
+   0.6223074793815613,
+   0.050119463354349136,
+   19.39699363708496
+  ],
+  [
+   "blocks.8.prenorm.scale",
+   "blocks.mod_norm",
+   8,
+   0.5255759358406067,
+   0.04835947975516319,
+   16.24097442626953
+  ],
+  [
+   "blocks.9.attn.qknorm.knorm.scale",
+   "blocks.attn",
+   9,
+   0.16177058219909668,
+   0.01690228283405304,
+   4.952825546264648
+  ],
+  [
+   "blocks.9.attn.qknorm.qnorm.scale",
+   "blocks.attn",
+   9,
+   0.16375721991062164,
+   0.01762235164642334,
+   4.988814830780029
+  ],
+  [
+   "blocks.9.mod.lin",
+   "blocks.mod_norm",
+   9,
+   0.9958866238594055,
+   0.15350352227687836,
+   30.69761848449707
+  ],
+  [
+   "blocks.9.postnorm.scale",
+   "blocks.mod_norm",
+   9,
+   0.6158804297447205,
+   0.05428016185760498,
+   19.10776138305664
+  ],
+  [
+   "blocks.9.prenorm.scale",
+   "blocks.mod_norm",
+   9,
+   0.5519869327545166,
+   0.05079434812068939,
+   17.114986419677734
+  ],
+  [
+   "first.bias",
+   "projections",
+   null,
+   0.3121883273124695,
+   0.04594726487994194,
+   10.589777946472168
+  ],
+  [
+   "last.linear.bias",
+   "projections",
+   null,
+   0.019509565085172653,
+   0.0015412040520459414,
+   0.6596311926841736
+  ],
+  [
+   "last.modulation.lin",
+   "projections",
+   null,
+   1.8381696939468384,
+   0.06936323642730713,
+   62.08674621582031
+  ],
+  [
+   "last.norm.scale",
+   "projections",
+   null,
+   1.1189182996749878,
+   0.04057469964027405,
+   38.0495491027832
+  ],
+  [
+   "tmlp.0.bias",
+   "projections",
+   null,
+   0.009753783233463764,
+   0.01059570349752903,
+   0.45837536454200745
+  ],
+  [
+   "tmlp.2.bias",
+   "projections",
+   null,
+   0.03721962869167328,
+   0.06286603212356567,
+   1.7740180492401123
+  ],
+  [
+   "tproj.1.bias",
+   "projections",
+   null,
+   0.4494335949420929,
+   0.18044030666351318,
+   21.057044982910156
+  ],
+  [
+   "txtfusion.layerwise_blocks.0.attn.qknorm.knorm.scale",
+   "txtfusion",
+   null,
+   0.07299076020717621,
+   0.011183439753949642,
+   2.2176425457000732
+  ],
+  [
+   "txtfusion.layerwise_blocks.0.attn.qknorm.qnorm.scale",
+   "txtfusion",
+   null,
+   0.07301183044910431,
+   0.01118426863104105,
+   2.2180447578430176
+  ],
+  [
+   "txtfusion.layerwise_blocks.0.postnorm.scale",
+   "txtfusion",
+   null,
+   0.825547993183136,
+   0.043529707938432693,
+   24.693151473999023
+  ],
+  [
+   "txtfusion.layerwise_blocks.0.prenorm.scale",
+   "txtfusion",
+   null,
+   0.8491740822792053,
+   0.046481721103191376,
+   25.448915481567383
+  ],
+  [
+   "txtfusion.layerwise_blocks.1.attn.qknorm.knorm.scale",
+   "txtfusion",
+   null,
+   0.03147060051560402,
+   0.009797614999115467,
+   0.9469248652458191
+  ],
+  [
+   "txtfusion.layerwise_blocks.1.attn.qknorm.qnorm.scale",
+   "txtfusion",
+   null,
+   0.03198748081922531,
+   0.009799353778362274,
+   0.9466848969459534
+  ],
+  [
+   "txtfusion.layerwise_blocks.1.postnorm.scale",
+   "txtfusion",
+   null,
+   0.8475180864334106,
+   0.045717716217041016,
+   25.643800735473633
+  ],
+  [
+   "txtfusion.layerwise_blocks.1.prenorm.scale",
+   "txtfusion",
+   null,
+   0.2646942734718323,
+   0.02982478030025959,
+   7.9683732986450195
+  ],
+  [
+   "txtfusion.refiner_blocks.0.attn.qknorm.knorm.scale",
+   "txtfusion",
+   null,
+   0.07568725943565369,
+   0.008608256466686726,
+   2.26501727104187
+  ],
+  [
+   "txtfusion.refiner_blocks.0.attn.qknorm.qnorm.scale",
+   "txtfusion",
+   null,
+   0.07620709389448166,
+   0.008600214496254921,
+   2.263958692550659
+  ],
+  [
+   "txtfusion.refiner_blocks.0.postnorm.scale",
+   "txtfusion",
+   null,
+   0.6341805458068848,
+   0.037113387137651443,
+   19.07404136657715
+  ],
+  [
+   "txtfusion.refiner_blocks.0.prenorm.scale",
+   "txtfusion",
+   null,
+   0.2713044285774231,
+   0.033325452357530594,
+   8.148935317993164
+  ],
+  [
+   "txtfusion.refiner_blocks.1.attn.qknorm.knorm.scale",
+   "txtfusion",
+   null,
+   0.057282302528619766,
+   0.00952967070043087,
+   1.7245935201644897
+  ],
+  [
+   "txtfusion.refiner_blocks.1.attn.qknorm.qnorm.scale",
+   "txtfusion",
+   null,
+   0.058137163519859314,
+   0.00952880922704935,
+   1.7236964702606201
+  ],
+  [
+   "txtfusion.refiner_blocks.1.postnorm.scale",
+   "txtfusion",
+   null,
+   0.5327646732330322,
+   0.03267332911491394,
+   15.969600677490234
+  ],
+  [
+   "txtfusion.refiner_blocks.1.prenorm.scale",
+   "txtfusion",
+   null,
+   0.21227435767650604,
+   0.03393160179257393,
+   6.410618305206299
+  ],
+  [
+   "txtmlp.0.scale",
+   "projections",
+   null,
+   0.40139663219451904,
+   0.041321828961372375,
+   12.029878616333008
+  ],
+  [
+   "txtmlp.1.bias",
+   "projections",
+   null,
+   0.09366478770971298,
+   0.057240355759859085,
+   2.8098676204681396
+  ],
+  [
+   "txtmlp.3.bias",
+   "projections",
+   null,
+   0.2450261116027832,
+   0.04962212219834328,
+   7.400946617126465
+  ]
+ ],
+ "candidates": [
+  {
+   "label": "remove 0.4 of the distillation",
+   "goal": "deturbo",
+   "steps": [
+    {
+     "function": "ckpt_merge",
+     "A": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo\\arthemyComicsKrea2_v11.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "B": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\raw.safetensors",
+      "weight": 0.4,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "C": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo_bf16\\turbo.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "loras": [],
+     "options": {
+      "method": "add_difference",
+      "params": {
+       "density": 0.2,
+       "lambda": 1.0,
+       "p": 0.5,
+       "seed": 0,
+       "beta": 0.0,
+       "gamma": 1.0,
+       "dare_ties": false
+      },
+      "output_format": "keep",
+      "passthrough": "official",
+      "fp8_layer_set": "official",
+      "int8_clip": "mse",
+      "keep_metadata": true,
+      "lora_mode": "after",
+      "output_as_lora": false,
+      "lora_out": {
+       "rank": 32,
+       "naming": "comfy",
+       "dtype": "fp16",
+       "method": "randomized"
+      },
+      "block_count": 28,
+      "use_gpu": true
+     },
+     "output": null
+    }
+   ],
+   "rationale": [
+    "de-Turbo is add difference with A = the fine tune, B = official Raw, C = official Turbo: A minus w (Turbo - Raw)",
+    "0.4 of the distillation matched the rank 64 Turbo LoRA at 0.5 seed for seed; 0.6 keeps few step sampling; 1.0 gives a Raw family model (about 28 to 52 steps, CFG about 3.5)"
+   ],
+   "expect": "the fine tune's look with the distillation dialed back; more steps needed as w grows",
+   "compare": "fixed seed grids at the step count each dose needs; check coherence at 8 steps for 0.4 and 0.6",
+   "flags": []
+  },
+  {
+   "label": "remove 0.6 of the distillation",
+   "goal": "deturbo",
+   "steps": [
+    {
+     "function": "ckpt_merge",
+     "A": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo\\arthemyComicsKrea2_v11.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "B": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\raw.safetensors",
+      "weight": 0.6,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "C": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo_bf16\\turbo.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "loras": [],
+     "options": {
+      "method": "add_difference",
+      "params": {
+       "density": 0.2,
+       "lambda": 1.0,
+       "p": 0.5,
+       "seed": 0,
+       "beta": 0.0,
+       "gamma": 1.0,
+       "dare_ties": false
+      },
+      "output_format": "keep",
+      "passthrough": "official",
+      "fp8_layer_set": "official",
+      "int8_clip": "mse",
+      "keep_metadata": true,
+      "lora_mode": "after",
+      "output_as_lora": false,
+      "lora_out": {
+       "rank": 32,
+       "naming": "comfy",
+       "dtype": "fp16",
+       "method": "randomized"
+      },
+      "block_count": 28,
+      "use_gpu": true
+     },
+     "output": null
+    }
+   ],
+   "rationale": [
+    "de-Turbo is add difference with A = the fine tune, B = official Raw, C = official Turbo: A minus w (Turbo - Raw)",
+    "0.4 of the distillation matched the rank 64 Turbo LoRA at 0.5 seed for seed; 0.6 keeps few step sampling; 1.0 gives a Raw family model (about 28 to 52 steps, CFG about 3.5)"
+   ],
+   "expect": "the fine tune's look with the distillation dialed back; more steps needed as w grows",
+   "compare": "fixed seed grids at the step count each dose needs; check coherence at 8 steps for 0.4 and 0.6",
+   "flags": []
+  },
+  {
+   "label": "remove 1 of the distillation",
+   "goal": "deturbo",
+   "steps": [
+    {
+     "function": "ckpt_merge",
+     "A": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo\\arthemyComicsKrea2_v11.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "B": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\raw.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "C": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo_bf16\\turbo.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "loras": [],
+     "options": {
+      "method": "add_difference",
+      "params": {
+       "density": 0.2,
+       "lambda": 1.0,
+       "p": 0.5,
+       "seed": 0,
+       "beta": 0.0,
+       "gamma": 1.0,
+       "dare_ties": false
+      },
+      "output_format": "keep",
+      "passthrough": "official",
+      "fp8_layer_set": "official",
+      "int8_clip": "mse",
+      "keep_metadata": true,
+      "lora_mode": "after",
+      "output_as_lora": false,
+      "lora_out": {
+       "rank": 32,
+       "naming": "comfy",
+       "dtype": "fp16",
+       "method": "randomized"
+      },
+      "block_count": 28,
+      "use_gpu": true
+     },
+     "output": null
+    }
+   ],
+   "rationale": [
+    "de-Turbo is add difference with A = the fine tune, B = official Raw, C = official Turbo: A minus w (Turbo - Raw)",
+    "0.4 of the distillation matched the rank 64 Turbo LoRA at 0.5 seed for seed; 0.6 keeps few step sampling; 1.0 gives a Raw family model (about 28 to 52 steps, CFG about 3.5)"
+   ],
+   "expect": "the fine tune's look with the distillation dialed back; more steps needed as w grows",
+   "compare": "fixed seed grids at the step count each dose needs; check coherence at 8 steps for 0.4 and 0.6",
+   "flags": []
+  },
+  {
+   "label": "attenuate the fine tune's own change to 0.7, then remove 0.6 of the distillation",
+   "goal": "deturbo",
+   "steps": [
+    {
+     "function": "ckpt_merge",
+     "A": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo_bf16\\turbo.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "B": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo\\arthemyComicsKrea2_v11.safetensors",
+      "weight": 0.7,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "C": null,
+     "loras": [],
+     "options": {
+      "method": "add_difference",
+      "params": {
+       "density": 0.2,
+       "lambda": 1.0,
+       "p": 0.5,
+       "seed": 0,
+       "beta": 0.0,
+       "gamma": 1.0,
+       "dare_ties": false
+      },
+      "output_format": "bf16",
+      "passthrough": "official",
+      "fp8_layer_set": "official",
+      "int8_clip": "mse",
+      "keep_metadata": true,
+      "lora_mode": "after",
+      "output_as_lora": false,
+      "lora_out": {
+       "rank": 32,
+       "naming": "comfy",
+       "dtype": "fp16",
+       "method": "randomized"
+      },
+      "block_count": 28,
+      "use_gpu": true
+     },
+     "output": null
+    },
+    {
+     "function": "ckpt_merge",
+     "A": {
+      "file": "@prev",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "B": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\raw.safetensors",
+      "weight": 0.6,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "C": {
+      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo_bf16\\turbo.safetensors",
+      "weight": 1.0,
+      "shaping": {
+       "preset": "FULL",
+       "modifier": "Suppress",
+       "contrast": 0.5,
+       "boost": 1.0
+      }
+     },
+     "loras": [],
+     "options": {
+      "method": "add_difference",
+      "params": {
+       "density": 0.2,
+       "lambda": 1.0,
+       "p": 0.5,
+       "seed": 0,
+       "beta": 0.0,
+       "gamma": 1.0,
+       "dare_ties": false
+      },
+      "output_format": "keep",
+      "passthrough": "official",
+      "fp8_layer_set": "official",
+      "int8_clip": "mse",
+      "keep_metadata": true,
+      "lora_mode": "after",
+      "output_as_lora": false,
+      "lora_out": {
+       "rank": 32,
+       "naming": "comfy",
+       "dtype": "fp16",
+       "method": "randomized"
+      },
+      "block_count": 28,
+      "use_gpu": true
+     },
+     "output": null
+    }
+   ],
+   "rationale": [
+    "seed collapse was found in the fine tune's residual, not only in the distillation (2026-09-14); a second dial on A's own change",
+    "step 1 is C + x (A - C), step 2 adds w (B - C); together C + x (A - C) + w (B - C)"
+   ],
+   "expect": "more seed variety at the cost of some of the fine tune's identity",
+   "compare": "against candidate 2 at the same seeds",
+   "flags": [
+    "two steps: the intermediate is written in bf16 and removed after the second step"
+   ]
+  }
+ ],
+ "notes": []
+}
