@@ -11,6 +11,7 @@ from . import __version__
 from .blocks import BLOCK_PRESETS, MODIFIERS, Shaping
 from .formats import INT8_CLIPS, OUTPUT_FORMATS, PASSTHROUGH
 from .methods import METHODS, METHOD_LABELS
+from .advisor import GOAL_ORDER
 
 
 def _shaping_arg(text: str | None) -> Shaping:
@@ -131,6 +132,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     m = sub.add_parser("methods", help="list the checkpoint merge methods and what the weight means")
 
+    ad = sub.add_parser("advise", help="measure how two checkpoints relate and propose merge recipes for a goal")
+    ad.add_argument("-A", required=True, help="the checkpoint to keep")
+    ad.add_argument("-B", required=True, help="the donor")
+    ad.add_argument("-C", default=None, help="the common ancestor (optional)")
+    ad.add_argument("--goal", default="add_content", choices=list(GOAL_ORDER))
+    ad.add_argument("--depth", default="full", choices=["full", "quick"])
+    ad.add_argument("--format", default="keep", choices=OUTPUT_FORMATS, help="output format of the candidate merges")
+    ad.add_argument("--save", default=None, metavar="STEM", help="save STEM.advice.json and the two spectrum pairs")
+    ad.add_argument("--run", default=None, metavar="DIR", help="run the candidates into DIR")
+    ad.add_argument("--pick", type=int, action="append", default=[], help="with --run: only these candidate numbers (repeatable)")
+    ad.add_argument("--keep-intermediate", action="store_true", help="keep the bf16 intermediate of two step candidates")
+
     sp = sub.add_parser("spectrum", help="show a saved analysis (.spectrum.json), or compare two")
     sp.add_argument("analysis")
     sp.add_argument("other", nargs="?")
@@ -196,6 +209,20 @@ def main(argv=None) -> int:
             return 0
         if args.cmd == "spectrum":
             return _spectrum_command(args)
+        if args.cmd == "advise":
+            from .advisor import advise, run_candidate
+            rep = advise(args.A, args.B, args.C, args.goal, args.depth, args.format, use_gpu, progress=prog)
+            print("\n" + rep.text())
+            if args.save:
+                print("saved " + ", ".join(rep.save(args.save)))
+            if args.run:
+                chosen = [rep.candidates[i - 1] for i in args.pick if 1 <= i <= len(rep.candidates)] if args.pick else list(rep.candidates)
+                for c in chosen:
+                    if not c.steps:
+                        continue
+                    outs = run_candidate(rep, c, args.run, use_gpu, progress=prog, log=log, keep_intermediate=args.keep_intermediate)
+                    print(f"\ncandidate '{c.label}': wrote {outs[-1]}")
+            return 0
         if args.cmd == "inspect":
             from .inspect_file import inspect_path
             for f in args.files:

@@ -607,6 +607,41 @@ def spectrum_stem(path: str) -> str:
     return p
 
 
+# ----------------------------------------------------------------------------- shared per module step
+def spectrum_with_guard(delta: torch.Tensor, stats: dict, null: bool = False) -> tuple[torch.Tensor, dict]:
+    """Spectrum of a materialized delta with the noise model's resolution guard and the optional null spectrum.
+    stats carries noise_var (per element, corrected); the guard recomputes with svdvals when the edge sits below
+    the Gram resolution and records resolved_by_svd; null adds sigma_null. Returns (sv on device, stats)."""
+    shape = tuple(delta.shape)
+    sv = spectrum_full(delta)
+    if stats.get("noise_var", 0.0) > 0 and sv.numel():
+        edge = math.sqrt(stats["noise_var"]) * (math.sqrt(shape[0]) + math.sqrt(shape[1]))
+        if edge < 10.0 * gram_resolution(float(sv[0])):
+            sv = torch.linalg.svdvals(delta.to(torch.float32))
+            stats["resolved_by_svd"] = True
+    if null and stats.get("noise_var", 0.0) > 0:
+        stats["sigma_null"] = noise_spectrum(shape, stats["noise_var"], delta.device).detach().float().cpu()
+    return sv, stats
+
+
+def delta_stats(layouts: tuple, dtypes: tuple, base_w: torch.Tensor, delta: torch.Tensor) -> dict:
+    """Noise variance, base norm and zero fraction for a delta between two stored tensors of the given layouts."""
+    lb, lt = layouts
+    db, dt = dtypes
+    fro = float(base_w.norm().item())
+    var = layout_noise_variance(lb, db, base_w, fro) + layout_noise_variance(lt, dt, base_w, fro)
+    zero = float((delta == 0).float().mean().item()) if delta.numel() else 1.0
+    return {"noise_var": var * (1.0 - zero), "base_fro": fro, "zero_fraction": zero, "layouts": (lb, lt), "dtypes": (db, dt)}
+
+
+def make_module_spectrum(c: str, name: str, sv: torch.Tensor, shape: tuple, stats: dict, exact: bool = False) -> ModuleSpectrum:
+    return ModuleSpectrum(c, name, group_of(name), shape, sv.detach().float().cpu(), exact,
+                         noise_var=stats.get("noise_var", 0.0), base_fro=stats.get("base_fro"),
+                         zero_fraction=stats.get("zero_fraction", 0.0), layouts=stats.get("layouts", ()),
+                         dtypes=stats.get("dtypes", ()), resolved_by_svd=stats.get("resolved_by_svd", False),
+                         sigma_null=stats.get("sigma_null"))
+
+
 # ----------------------------------------------------------------------------- the pass
 def analyze_sources(sources: list, canon_list: list, names: dict, device, noise: dict | None = None,
                     requested_rank: int | None = None, progress=None, cancel=None,
@@ -650,22 +685,11 @@ def analyze_sources(sources: list, canon_list: list, names: dict, device, noise:
                     d = s.delta(c, device)
                 delta = d if delta is None else delta + d
             shape = tuple(delta.shape)
-            sv = spectrum_full(delta)
-            if stats.get("noise_var", 0.0) > 0 and sv.numel():
-                edge = math.sqrt(stats["noise_var"]) * (math.sqrt(shape[0]) + math.sqrt(shape[1]))
-                if edge < 10.0 * gram_resolution(float(sv[0])):
-                    sv = torch.linalg.svdvals(delta.to(torch.float32))
-                    stats["resolved_by_svd"] = True
-            if null_spectrum and stats.get("noise_var", 0.0) > 0:
-                stats["sigma_null"] = noise_spectrum(shape, stats["noise_var"], delta.device).detach().float().cpu()
+            sv, stats = spectrum_with_guard(delta, stats, null_spectrum)
             del delta
             if device.type == "cuda" and shape[0] * shape[1] >= (1 << 24):
                 torch.cuda.empty_cache()
-        ms = ModuleSpectrum(c, name, group_of(name), shape, sv.detach().float().cpu(), exact,
-                            noise_var=stats.get("noise_var", 0.0), base_fro=stats.get("base_fro"),
-                            zero_fraction=stats.get("zero_fraction", 0.0), layouts=stats.get("layouts", ()),
-                            dtypes=stats.get("dtypes", ()), resolved_by_svd=stats.get("resolved_by_svd", False),
-                            sigma_null=stats.get("sigma_null"))
+        ms = make_module_spectrum(c, name, sv, shape, stats, exact)
         if not stats and c in noise and shape[0] * shape[1] > 0:
             ms.noise_var = float(noise[c]) / (shape[0] * shape[1])
         rep.add(ms)
@@ -681,9 +705,4 @@ def analyze_sources(sources: list, canon_list: list, names: dict, device, noise:
 
 def _pair_stats(src, c: str, base_w: torch.Tensor, delta: torch.Tensor) -> dict:
     """Noise variance, base norm and zero fraction for a checkpoint pair module."""
-    lb, lt = src.layouts(c)
-    db, dt = src.dtypes(c)
-    fro = float(base_w.norm().item())
-    var = layout_noise_variance(lb, db, base_w, fro) + layout_noise_variance(lt, dt, base_w, fro)
-    zero = float((delta == 0).float().mean().item()) if delta.numel() else 1.0
-    return {"noise_var": var * (1.0 - zero), "base_fro": fro, "zero_fraction": zero, "layouts": (lb, lt), "dtypes": (db, dt)}
+    return delta_stats(src.layouts(c), src.dtypes(c), base_w, delta)
