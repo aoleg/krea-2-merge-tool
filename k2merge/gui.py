@@ -29,6 +29,7 @@ from .keys import KREA2_BLOCKS
 from .lora_merge import LoraInput, LoraMergeOptions
 from .methods import ADVANCED, METHODS, METHOD_LABELS, NEEDS_C
 from .spectrum_tab import SpectrumTab
+from .advisor_tab import AdvisorTab
 
 ST_FILES = [("safetensors", "*.safetensors"), ("all files", "*.*")]
 SETTINGS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "settings.json")
@@ -1330,9 +1331,11 @@ class MergeApp(tk.Tk):
         self.tab_ckpt = CkptTab(self.nb, self)
         self.tab_spectrum = SpectrumTab(self.nb, self)
         self.themed.append(self.tab_spectrum)
+        self.tab_advisor = AdvisorTab(self.nb, self)
         self.nb.add(self.tab_lora, text="LoRA merge")
         self.nb.add(self.tab_extract, text="Extract LoRA")
         self.nb.add(self.tab_ckpt, text="Checkpoint merge / convert")
+        self.nb.add(self.tab_advisor, text="Advisor")
         self.nb.add(self.tab_spectrum, text="Spectrum")
 
         bottom = ttk.Frame(self, padding=(px(10), px(4), px(10), px(10)))
