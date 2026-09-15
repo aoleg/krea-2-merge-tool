@@ -21,7 +21,7 @@ from tkinter import filedialog, font as tkfont, messagebox, ttk
 
 from . import __version__
 from .blocks import BLOCK_PRESETS, MODIFIERS, RECIPES, RECIPE_LABELS, Shaping
-from .ckpt_merge import CkptInput, CkptMergeOptions
+from .ckpt_merge import VECTOR_SOURCES, CkptInput, CkptMergeOptions
 from .engine import Cancelled
 from .extract import ExtractOptions
 from .formats import OUTPUT_FORMATS, PASSTHROUGH
@@ -893,6 +893,10 @@ class CkptTab(ttk.Frame):
         ttk.Label(self.lora_out_frame, text="naming", width=LABEL_W).grid(row=1, column=0, sticky="w", **PAD)
         self.lora_naming = tk.StringVar(value="comfy")
         ttk.Combobox(self.lora_out_frame, textvariable=self.lora_naming, values=["comfy", "kohya"], state="readonly", width=10).grid(row=1, column=1, sticky="w", **PAD)
+        self.vectors_from = _labeled(body, 6, "vectors from", lambda p: ttk.Combobox(p, values=list(VECTOR_SOURCES), state="readonly", width=10),
+                                     "norm scales, modulation vectors and biases: merged like the rest, or copied from A, B or C "
+                                     "(C restores an official file's vectors after a fine tune or de-Turbo that skipped them)")
+        self.vectors_from.set("merge")
         body.columnconfigure(2, weight=1)
         of.columnconfigure(2, weight=1)
 
@@ -947,7 +951,7 @@ class CkptTab(ttk.Frame):
     def options(self) -> CkptMergeOptions:
         o = CkptMergeOptions(method=self.method.get(), output_format=self.fmt.get(), passthrough=self.passthrough.get(),
                              fp8_layer_set=self.fp8_set.get(), int8_clip=self.int8_clip.get(), keep_metadata=self.keep_meta.get(),
-                             lora_mode=self.lora_mode.get(), output_as_lora=self.as_lora.get())
+                             lora_mode=self.lora_mode.get(), output_as_lora=self.as_lora.get(), vectors_from=self.vectors_from.get())
         for k, v in self.params.items():
             try:
                 o.params[k] = int(v.get()) if k == "seed" else float(v.get().replace(",", "."))
@@ -996,6 +1000,7 @@ class CkptTab(ttk.Frame):
         self.passthrough.set(o.passthrough)
         self.fp8_set.set(o.fp8_layer_set)
         self.int8_clip.set(o.int8_clip)
+        self.vectors_from.set(o.vectors_from if o.vectors_from in VECTOR_SOURCES else "merge")
         self.as_lora.set(o.output_as_lora)
         self.lora_rank.set(str(o.lora_out.get("rank", 32)))
         self.lora_naming.set(o.lora_out.get("naming", "comfy"))
@@ -1004,7 +1009,8 @@ class CkptTab(ttk.Frame):
         self._method_changed()
         self._format_changed()
         self._as_lora_changed()
-        if o.output_as_lora or o.passthrough != "official" or o.fp8_layer_set != "official" or o.int8_clip != "mse" or not o.keep_metadata:
+        if (o.output_as_lora or o.passthrough != "official" or o.fp8_layer_set != "official" or o.int8_clip != "mse" or not o.keep_metadata
+                or o.vectors_from != "merge"):
             self.adv.set_open(True)
 
     # ---- actions

@@ -12,6 +12,7 @@ from .blocks import BLOCK_PRESETS, MODIFIERS, Shaping
 from .formats import INT8_CLIPS, OUTPUT_FORMATS, PASSTHROUGH
 from .methods import METHODS, METHOD_LABELS
 from .advisor import GOAL_ORDER
+from .ckpt_merge import VECTOR_SOURCES
 
 
 def _shaping_arg(text: str | None) -> Shaping:
@@ -126,6 +127,8 @@ def build_parser() -> argparse.ArgumentParser:
     cm.add_argument("--passthrough", default="official", choices=PASSTHROUGH)
     cm.add_argument("--fp8-layers", default="official", choices=["official", "blocks"])
     cm.add_argument("--int8-clip", default="mse", choices=INT8_CLIPS)
+    cm.add_argument("--vectors-from", default="merge", choices=VECTOR_SOURCES,
+                    help="norm scales, modulation vectors and biases: merged like the rest (merge), or copied from A, B or C")
     cm.add_argument("--as-lora", type=int, default=None, metavar="RANK", help="write the result as a LoRA of this rank")
     cm.add_argument("--report", action="store_true", help="print the pre merge report and exit")
     cm.add_argument("--plan", action="store_true")
@@ -289,7 +292,8 @@ def main(argv=None) -> int:
             if len(loras) > 4:
                 ap.error("at most 4 LoRAs")
             opts = CkptMergeOptions(method=args.method, output_format=args.format, passthrough=args.passthrough,
-                                    fp8_layer_set=args.fp8_layers, int8_clip=args.int8_clip, lora_mode=args.lora_mode, use_gpu=use_gpu)
+                                    fp8_layer_set=args.fp8_layers, int8_clip=args.int8_clip, lora_mode=args.lora_mode, use_gpu=use_gpu,
+                                    vectors_from=args.vectors_from)
             for p in args.param:
                 k, _, v = p.partition("=")
                 opts.params[k] = (v.lower() == "true") if k == "dare_ties" else (int(v) if k == "seed" else float(v))

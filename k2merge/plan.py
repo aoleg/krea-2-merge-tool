@@ -106,6 +106,9 @@ def plan_ckpt_merge(A: CkptInput, B: CkptInput | None, C: CkptInput | None, lora
             lines.append(f"{len(ctx.only_in_a)} tensor(s) only in A are copied from A")
         if ctx.only_in_b:
             lines.append(f"{len(ctx.only_in_b)} tensor(s) only in B are ignored")
+        if opts.vectors_from != "merge":
+            nv = sum(1 for k in ctx.A.reader.infos if not ctx.A.fmt.is_consumed(k) and len(ctx.A.reader.shape(k)) != 2)
+            lines.append(f"norm scales, modulation vectors and biases ({nv} tensors) copied from {opts.vectors_from}, not merged")
         if opts.output_as_lora:
             n2 = sum(1 for k in touched if k.endswith(".weight") and len(ctx.A.reader.shape(k)) == 2)
             lines.append(f"output as LoRA: {n2} changed 2-D weights, rank {opts.lora_out.get('rank')}, {opts.lora_out.get('naming')} naming")

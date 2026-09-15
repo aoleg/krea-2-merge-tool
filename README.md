@@ -102,6 +102,8 @@ A is the primary checkpoint and always has weight 1. B is the secondary with wei
 | trainDifference | SuperMerger | as add difference, damped where A already moved toward B |
 | Extract | SuperMerger | interpolation of the two changes, masked to their common (beta 0) or distinct (beta 1) parts |
 
+Vectors from (under More output options): the norm scales, modulation vectors and biases, every tensor that is not a 2-D weight, are merged like the rest by default. The option copies them from A, B or C instead. Use C to put an official file's vectors back after a fine tune or a third party de-Turbo that only touched the linears, or B at weight 0 to swap the vectors of one file for another's and change nothing else. Their share of a change is small (about 0.02 percent of the official distillation's energy), so expect a subtle effect.
+
 ## Command line
 
 ```bash
@@ -126,6 +128,10 @@ run.bat extract krea2_turbo_bf16.safetensors finetune.safetensors -o finetune_lo
 
 ```bash
 run.bat ckpt-merge -A base.safetensors -B "finetune.safetensors|1|STYLE:Isolate:1.0@0" -C krea2_turbo_bf16.safetensors -o style_only.safetensors --as-lora 32
+```
+
+```bash
+run.bat ckpt-merge -A finetune_raw.safetensors -B "krea2_raw_bf16.safetensors|0" -o finetune_raw_fixed.safetensors --format keep --vectors-from B
 ```
 
 ```bash

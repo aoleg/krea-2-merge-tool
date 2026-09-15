@@ -43,6 +43,9 @@ class CkptInput:
         return cls(d["file"], float(d.get("weight", 1.0)), Shaping.from_dict(d.get("shaping")))
 
 
+VECTOR_SOURCES = ("merge", "A", "B", "C")   # where the non 2-D tensors (norm scales, modulation vectors, biases) come from
+
+
 @dataclass
 class CkptMergeOptions:
     method: str = "add_difference"
@@ -52,6 +55,7 @@ class CkptMergeOptions:
     passthrough: str = "official"
     fp8_layer_set: str = "official"
     int8_clip: str = "mse"            # mse (reproduces the official int8 file) | absmax
+    vectors_from: str = "merge"       # merge | A | B | C: norm scales, modulation vectors and biases merged like the rest, or copied from one input
     keep_metadata: bool = True
     lora_mode: str = "after"          # after | task_vectors (TIES / DARE)
     output_as_lora: bool = False
@@ -121,6 +125,10 @@ def _open_context(A: CkptInput, B: CkptInput | None, C: CkptInput | None, loras:
     if opts.method in methods.NEEDS_C and c is None and b is not None:
         log(f"{opts.method}: no reference given, using A as the reference")
     ctx = MergeContext(a, b, c, [], {}, opts, device)
+    if opts.vectors_from not in VECTOR_SOURCES:
+        raise FormatError(f"vectors from {opts.vectors_from!r}: choose one of {', '.join(VECTOR_SOURCES)}")
+    if _vector_source(ctx) is None:
+        raise FormatError(f"vectors from {opts.vectors_from}: no {opts.vectors_from} input in this run")
 
     if b is not None:
         for k in a.reader.infos:
@@ -181,9 +189,27 @@ def _cosine_prepass(ctx: MergeContext, progress=None, cancel=None):
     ctx.cosine = stats.finish()
 
 
+def _vector_source(ctx: MergeContext):
+    """The checkpoint the non 2-D tensors are copied from, None when that input is missing, or the string
+    'merge' when they are merged like the rest."""
+    v = ctx.opts.vectors_from
+    if v == "merge":
+        return "merge"
+    return {"A": ctx.A, "B": ctx.B, "C": ctx.C}[v]
+
+
+def _is_vector(ctx: MergeContext, key: str) -> bool:
+    return len(ctx.A.reader.shape(key)) != 2
+
+
 def merged_value(ctx: MergeContext, key: str) -> torch.Tensor:
     """The merged fp32 value of A's tensor `key` (method + LoRAs)."""
     opts, dev = ctx.opts, ctx.device
+    if opts.vectors_from != "merge" and _is_vector(ctx, key):
+        src = _vector_source(ctx)
+        sk = src.key_for(key)
+        if sk is not None:
+            return src.fmt.read_fp32(sk, device=dev)
     a = ctx.A.fmt.read_fp32(key, device=dev)
     module, suffix = ckpt_module(key)
     bkey = ctx.B.key_for(key) if ctx.B else None
@@ -249,6 +275,16 @@ def _touched_keys(ctx: MergeContext) -> set:
                 continue
             if ctx.B.key_for(k) is not None and (ctx.A.reader.dtype(k) in FLOAT_TAGS or ctx.A.fmt.is_quantized(k)):
                 touched.add(k)
+    src = _vector_source(ctx)
+    if src == "merge":
+        return touched
+    for k in ctx.A.reader.infos:
+        if ctx.A.fmt.is_consumed(k) or not _is_vector(ctx, k) or k in ctx.lora_keys:
+            continue
+        if src is ctx.A or src.key_for(k) is None or ctx.A.reader.dtype(k) not in FLOAT_TAGS:
+            touched.discard(k)        # A's own value, copied as it is
+        else:
+            touched.add(k)
     return touched
 
 
