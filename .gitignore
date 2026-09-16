@@ -2,7 +2,7 @@ venv/
 __pycache__/
 *.pyc
 .pytest_cache/
-tests/_fixtures/
+tests/
 samples/
 *.log
 *.part

@@ -194,8 +194,7 @@ LoRA and checkpoint arguments take the form `FILE|WEIGHT|SHAPING`, where SHAPING
 - `krea2_merge_tool.py`: entry point.
 - `k2merge/`: engine, CLI, GUI.
 - `reference/`: the headers of the three official Krea 2 files and a script that summarizes them.
-- `fixtures/`: generator of synthetic mini Krea 2 files used by the tests.
-- `tests/`: `venv\Scripts\python -m pytest tests`.
+- `fixtures/`: generator of the synthetic mini Krea 2 files the development tests run on.
 - `tools/scale_test.py`: full size synthetic files and memory measurements.
 - `tools/real_runs.py`: the phase 8 runs on the real files, writing only into `samples/scratchpad`.
 - `working_specs.md`, `development_plan.md`: the specification and the plan.
