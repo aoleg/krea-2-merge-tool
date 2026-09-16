@@ -183,10 +183,16 @@ def recipe_for_metadata(recipe: dict | None) -> dict | None:
     return walk(recipe)
 
 
-def build_metadata(plan: Plan, base_metadata: dict | None, recipe: dict | None, keep_metadata: bool) -> dict:
+def build_metadata(plan: Plan, base_metadata: dict | None, recipe: dict | None, keep_metadata: bool,
+                   redact_inherited: bool = True) -> dict:
     meta: dict = {}
     if keep_metadata and base_metadata:
         meta.update({k: str(v) for k, v in base_metadata.items()})
+        if redact_inherited:
+            # the tool stopped writing the user's own paths in b457810; inherited ones (a trainer's dataset
+            # folders, an upstream merger's recipe) would otherwise be republished by every merge
+            from .meta import redact_paths
+            meta = redact_paths(meta)
     meta.pop("_quantization_metadata", None)
     if plan.quant_layers:
         meta["_quantization_metadata"] = json.dumps({"layers": plan.quant_layers})
@@ -337,9 +343,12 @@ def _subsample(w: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
 
 def verify_output(out_path: str, plan: Plan, kept: dict, device: torch.device, log) -> dict:
     """Reopens the output and checks structure and a sample of values."""
-    result = {"ok": True, "problems": [], "checked": 0, "max_rel_err": 0.0, "per_layer": []}
+    result = {"ok": True, "problems": [], "warnings": [], "checked": 0, "max_rel_err": 0.0, "per_layer": []}
     with TensorReader(out_path) as r:
         fmt = FileFormat(r)
+        from .meta import paths_in
+        # redaction by recipe field is key based, so a field added later would leak silently; this is value based
+        result["warnings"] += [f"the metadata still holds a path: {p}" for p in paths_in(r.metadata)]
         planned = {it.name: it for it in plan.items}
         if set(r.infos) != set(planned):
             result["problems"].append("tensor set differs from the plan")
@@ -375,6 +384,8 @@ def verify_output(out_path: str, plan: Plan, kept: dict, device: torch.device, l
     result["ok"] = not result["problems"]
     for p in result["problems"]:
         log(f"verify: {p}")
+    for w in result["warnings"]:
+        log(f"verify: warning: {w}")
     return result
 
 
@@ -382,7 +393,8 @@ def verify_output(out_path: str, plan: Plan, kept: dict, device: torch.device, l
 def convert_checkpoint(src: str, dst: str, out_format: str, passthrough: str = "official",
                        fp8_layer_set: str = "official", keep_metadata: bool = True,
                        recipe: dict | None = None, use_gpu: bool = True,
-                       progress=None, cancel=None, log=None, int8_clip: str = "mse") -> RunResult:
+                       progress=None, cancel=None, log=None, int8_clip: str = "mse",
+                       redact_inherited: bool = True) -> RunResult:
     """Single input, no arithmetic: format conversion."""
     device = pick_device(use_gpu)
     with TensorReader(src) as reader:
@@ -393,5 +405,5 @@ def convert_checkpoint(src: str, dst: str, out_format: str, passthrough: str = "
             "function": "convert", "inputs": [{"role": "A", "file": os.path.basename(src)}],
             "output_format": out_format, "passthrough": passthrough, "fp8_layer_set": fp8_layer_set,
             "int8_clip": int8_clip}
-        meta = build_metadata(plan, reader.metadata, rec, keep_metadata)
+        meta = build_metadata(plan, reader.metadata, rec, keep_metadata, redact_inherited)
         return execute_plan(plan, dst, meta, device, progress, cancel, log, input_paths=(src,))

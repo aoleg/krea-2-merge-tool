@@ -1530,7 +1530,7 @@
     {
      "function": "ckpt_merge",
      "A": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\anterosXXXKrea2_unaligned.safetensors",
+      "file": "anterosXXXKrea2_unaligned.safetensors",
       "weight": 1.0,
       "shaping": {
        "preset": "FULL",
@@ -1540,7 +1540,7 @@
       }
      },
      "B": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\lustify-v10-krea-raw-fp16.safetensors",
+      "file": "lustify-v10-krea-raw-fp16.safetensors",
       "weight": 0.6,
       "shaping": {
        "preset": "FULL",
@@ -1550,7 +1550,7 @@
       }
      },
      "C": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\raw.safetensors",
+      "file": "raw.safetensors",
       "weight": 1.0,
       "shaping": {
        "preset": "FULL",
@@ -1605,7 +1605,7 @@
     {
      "function": "ckpt_merge",
      "A": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\anterosXXXKrea2_unaligned.safetensors",
+      "file": "anterosXXXKrea2_unaligned.safetensors",
       "weight": 1.0,
       "shaping": {
        "preset": "FULL",
@@ -1615,7 +1615,7 @@
       }
      },
      "B": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\lustify-v10-krea-raw-fp16.safetensors",
+      "file": "lustify-v10-krea-raw-fp16.safetensors",
       "weight": 1.2,
       "shaping": {
        "preset": "FULL",
@@ -1625,7 +1625,7 @@
       }
      },
      "C": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\raw.safetensors",
+      "file": "raw.safetensors",
       "weight": 1.0,
       "shaping": {
        "preset": "FULL",
@@ -1680,7 +1680,7 @@
     {
      "function": "ckpt_merge",
      "A": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\anterosXXXKrea2_unaligned.safetensors",
+      "file": "anterosXXXKrea2_unaligned.safetensors",
       "weight": 1.0,
       "shaping": {
        "preset": "FULL",
@@ -1690,7 +1690,7 @@
       }
      },
      "B": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\lustify-v10-krea-raw-fp16.safetensors",
+      "file": "lustify-v10-krea-raw-fp16.safetensors",
       "weight": 2.0,
       "shaping": {
        "preset": "FULL",
@@ -1700,7 +1700,7 @@
       }
      },
      "C": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\raw.safetensors",
+      "file": "raw.safetensors",
       "weight": 1.0,
       "shaping": {
        "preset": "FULL",

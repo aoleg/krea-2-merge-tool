@@ -19,6 +19,7 @@ from .blocks import Shaping
 from .engine import Cancelled, pick_device, recipe_for_metadata
 from .keys import KREA2_BLOCKS, canon, ckpt_module, strip_prefixes
 from .lora import LoraFile, LoraFormatError
+from .meta import redact_paths
 from .refcheck import load_reference_header
 from .sources import LoraSource
 from .st_io import StreamWriter, TensorReader, same_file
@@ -54,6 +55,7 @@ class LoraMergeOptions:
     dtype: str = "fp16"
     write_alpha: bool = True
     keep_metadata: bool = True
+    redact_inherited: bool = True      # strip paths out of the metadata inherited from the naming input
     block_count: int = KREA2_BLOCKS
     checkpoint: str | None = None      # optional checkpoint whose keys resolve module names
 
@@ -264,7 +266,8 @@ def merge_loras(inputs: list[LoraInput], out_path: str, opts: LoraMergeOptions, 
         kept_min = min(v[2] for v in results.values())
         meta = {}
         if opts.keep_metadata:
-            meta.update({k: str(v) for k, v in ref_src.file.metadata.items()})
+            inherited = {k: str(v) for k, v in ref_src.file.metadata.items()}
+            meta.update(redact_paths(inherited) if opts.redact_inherited else inherited)
         recipe = {"function": "lora_merge", "inputs": [i.to_dict() for i in inputs], "options": opts.to_dict()}
         meta.update({"merge_tool": f"{TOOL_NAME} {__version__}", "merge_recipe": json.dumps(recipe_for_metadata(recipe), separators=(",", ":")),
                      "merge_output_rank": f"{min(ranks)}-{max(ranks)}" if min(ranks) != max(ranks) else str(ranks[0])})

@@ -30,6 +30,7 @@ from .lora_merge import LoraInput, LoraMergeOptions
 from .methods import ADVANCED, METHODS, METHOD_LABELS, NEEDS_C
 from .spectrum_tab import SpectrumTab
 from .advisor_tab import AdvisorTab
+from .meta_tab import MetaTab
 
 ST_FILES = [("safetensors", "*.safetensors"), ("all files", "*.*")]
 SETTINGS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "settings.json")
@@ -883,9 +884,12 @@ class CkptTab(ttk.Frame):
         self.fmt_rows = {name: list(body.grid_slaves(row=i)) for i, name in enumerate(("passthrough", "fp8", "int8"))}
         self.keep_meta = tk.BooleanVar(value=True)
         ttk.Checkbutton(body, text="keep A's metadata", variable=self.keep_meta).grid(row=3, column=0, columnspan=3, sticky="w", **PAD)
+        self.redact_meta = tk.BooleanVar(value=True)
+        ttk.Checkbutton(body, text="remove paths from the metadata A brought with it (a trainer's dataset folders, an upstream recipe)",
+                        variable=self.redact_meta).grid(row=4, column=0, columnspan=3, sticky="w", **PAD)
         self.as_lora = tk.BooleanVar(value=False)
         ttk.Checkbutton(body, text="write the result as a LoRA (result minus C, or minus A) instead of a checkpoint",
-                        variable=self.as_lora, command=self._as_lora_changed).grid(row=4, column=0, columnspan=3, sticky="w", **PAD)
+                        variable=self.as_lora, command=self._as_lora_changed).grid(row=5, column=0, columnspan=3, sticky="w", **PAD)
         self.lora_out_frame = ttk.Frame(body)
         ttk.Label(self.lora_out_frame, text="LoRA rank", width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
         self.lora_rank = tk.StringVar(value="32")
@@ -893,7 +897,7 @@ class CkptTab(ttk.Frame):
         ttk.Label(self.lora_out_frame, text="naming", width=LABEL_W).grid(row=1, column=0, sticky="w", **PAD)
         self.lora_naming = tk.StringVar(value="comfy")
         ttk.Combobox(self.lora_out_frame, textvariable=self.lora_naming, values=["comfy", "kohya"], state="readonly", width=10).grid(row=1, column=1, sticky="w", **PAD)
-        self.vectors_from = _labeled(body, 6, "vectors from", lambda p: ttk.Combobox(p, values=list(VECTOR_SOURCES), state="readonly", width=10),
+        self.vectors_from = _labeled(body, 7, "vectors from", lambda p: ttk.Combobox(p, values=list(VECTOR_SOURCES), state="readonly", width=10),
                                      "norm scales, modulation vectors and biases: merged like the rest, or copied from A, B or C "
                                      "(C restores an official file's vectors after a fine tune or de-Turbo that skipped them)")
         self.vectors_from.set("merge")
@@ -943,7 +947,7 @@ class CkptTab(ttk.Frame):
 
     def _as_lora_changed(self):
         if self.as_lora.get():
-            self.lora_out_frame.grid(row=5, column=0, columnspan=3, sticky="ew")
+            self.lora_out_frame.grid(row=6, column=0, columnspan=3, sticky="ew")
         else:
             self.lora_out_frame.grid_forget()
 
@@ -951,6 +955,7 @@ class CkptTab(ttk.Frame):
     def options(self) -> CkptMergeOptions:
         o = CkptMergeOptions(method=self.method.get(), output_format=self.fmt.get(), passthrough=self.passthrough.get(),
                              fp8_layer_set=self.fp8_set.get(), int8_clip=self.int8_clip.get(), keep_metadata=self.keep_meta.get(),
+                             redact_inherited=self.redact_meta.get(),
                              lora_mode=self.lora_mode.get(), output_as_lora=self.as_lora.get(), vectors_from=self.vectors_from.get())
         for k, v in self.params.items():
             try:
@@ -1005,11 +1010,13 @@ class CkptTab(ttk.Frame):
         self.lora_rank.set(str(o.lora_out.get("rank", 32)))
         self.lora_naming.set(o.lora_out.get("naming", "comfy"))
         self.keep_meta.set(o.keep_metadata)
+        self.redact_meta.set(o.redact_inherited)
         self.out.set(r.get("output"))
         self._method_changed()
         self._format_changed()
         self._as_lora_changed()
         if (o.output_as_lora or o.passthrough != "official" or o.fp8_layer_set != "official" or o.int8_clip != "mse" or not o.keep_metadata
+                or not o.redact_inherited
                 or o.vectors_from != "merge"):
             self.adv.set_open(True)
 
@@ -1338,11 +1345,13 @@ class MergeApp(tk.Tk):
         self.tab_spectrum = SpectrumTab(self.nb, self)
         self.themed.append(self.tab_spectrum)
         self.tab_advisor = AdvisorTab(self.nb, self)
+        self.tab_meta = MetaTab(self.nb, self)
         self.nb.add(self.tab_lora, text="LoRA merge")
         self.nb.add(self.tab_extract, text="Extract LoRA")
         self.nb.add(self.tab_ckpt, text="Checkpoint merge / convert")
         self.nb.add(self.tab_advisor, text="Advisor")
         self.nb.add(self.tab_spectrum, text="Spectrum")
+        self.nb.add(self.tab_meta, text="Metadata")
 
         bottom = ttk.Frame(self, padding=(px(10), px(4), px(10), px(10)))
         bottom.pack(fill="both")
@@ -1389,16 +1398,36 @@ class MergeApp(tk.Tk):
         p = filedialog.askopenfilename(filetypes=JSON_FILES + [("safetensors with recipe", "*.safetensors")])
         if not p:
             return
-        from .recipe import load_recipe, recipe_from_file_metadata, resolve_recipe_paths
+        if not self.open_recipe(p):
+            messagebox.showinfo("Recipe", "This file carries no recipe.")
+
+    def open_recipe(self, p: str) -> bool:
+        """Fill the tab a recipe belongs to, from a recipe file or from a file that carries one in its metadata.
+        False means there was no recipe. A stored recipe holds file names only, so the inputs are looked for next
+        to the file and in the remembered search folder, and what is missing is named."""
+        from .recipe import load_recipe, recipe_from_file_metadata, resolution_report, resolve_recipe_paths
         try:
             r = recipe_from_file_metadata(p) if p.lower().endswith(".safetensors") else load_recipe(p)
         except Exception as e:  # noqa: BLE001
             messagebox.showerror("Recipe", str(e))
-            return
+            return True
         if r is None:
-            messagebox.showinfo("Recipe", "This file carries no recipe.")
-            return
-        r = resolve_recipe_paths(r, os.path.dirname(os.path.abspath(p)))   # stored recipes hold file names only
+            return False
+        base = os.path.dirname(os.path.abspath(p))
+        extra = [d for d in (self.settings.get("recipe_search_dir"),) if d]
+        rows = resolution_report(r, base, extra)
+        if any(q is None for _role, _name, q in rows):
+            if messagebox.askyesno("Recipe", "Some inputs of this recipe are not next to the file:\n\n"
+                                   + "\n".join(f"  {role}: {name}" for role, name, q in rows if q is None)
+                                   + "\n\nChoose a folder to look in?"):
+                d = filedialog.askdirectory(title="Where the inputs are", initialdir=self.settings.get("recipe_search_dir") or base)
+                if d:
+                    self.settings["recipe_search_dir"] = d
+                    extra = [d]
+                    rows = resolution_report(r, base, extra)
+        for role, name, q in rows:
+            self.log(f"  {role}: {name}" + (f" -> {q}" if q else "   NOT FOUND, fill this slot by hand"))
+        r = resolve_recipe_paths(r, base, extra)   # stored recipes hold file names only
         target = {"lora_merge": self.tab_lora, "extract": self.tab_extract, "ckpt_merge": self.tab_ckpt, "convert": self.tab_ckpt}[r["function"]]
         if r["function"] == "convert":
             r = {"function": "ckpt_merge", "A": {"file": r["inputs"][0]["file"]}, "loras": [],
@@ -1408,6 +1437,7 @@ class MergeApp(tk.Tk):
         target.from_recipe(r)
         self.nb.select(target)
         self.log(f"recipe loaded: {p}")
+        return True
 
     # ---- jobs
     def run_job(self, label: str, job, on_done):

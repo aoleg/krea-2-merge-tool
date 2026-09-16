@@ -20,6 +20,7 @@ from .engine import Cancelled, pick_device, recipe_for_metadata
 from .formats import FileFormat
 from .keys import KREA2_BLOCKS, canon, ckpt_module, group_of, in_int8_recipe
 from .lora_merge import DTYPE_TAG, DTYPE_TORCH, output_keys
+from .meta import redact_paths
 from .sources import CheckpointDelta
 from .st_io import StreamWriter, TensorReader, same_file
 
@@ -41,6 +42,7 @@ class ExtractOptions:
     niter: int = 6
     write_alpha: bool = True
     keep_metadata: bool = False
+    redact_inherited: bool = True     # strip paths out of the metadata inherited from the target
     block_count: int = KREA2_BLOCKS
 
     def to_dict(self):
@@ -238,7 +240,8 @@ def extract_lora(base_path: str, target_path: str, out_path: str, opts: ExtractO
 
         meta = {}
         if opts.keep_metadata:
-            meta.update({k: str(v) for k, v in rt.metadata.items() if k != "_quantization_metadata"})
+            inherited = {k: str(v) for k, v in rt.metadata.items() if k != "_quantization_metadata"}
+            meta.update(redact_paths(inherited) if opts.redact_inherited else inherited)
         recipe = {"function": "extract", "base": os.path.basename(base_path), "target": os.path.basename(target_path),
                   "options": opts.to_dict()}
         meta.update({"merge_tool": f"{TOOL_NAME} {__version__}", "merge_recipe": json.dumps(recipe_for_metadata(recipe), separators=(",", ":"))})

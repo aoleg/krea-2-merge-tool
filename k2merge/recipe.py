@@ -16,7 +16,7 @@ import json
 import os
 
 from .ckpt_merge import CkptInput, CkptMergeOptions, merge_checkpoints
-from .engine import convert_checkpoint
+from .engine import PATH_KEYS, convert_checkpoint
 from .extract import ExtractOptions, extract_lora
 from .lora_merge import LoraInput, LoraMergeOptions, merge_loras
 from .st_io import read_header
@@ -48,17 +48,41 @@ def recipe_from_file_metadata(path: str) -> dict | None:
     return r
 
 
-def resolve_recipe_paths(r: dict, base_dir: str | None) -> dict:
-    """A copy of the recipe with every relative path that exists under base_dir made absolute (for recipes read
-    back from a produced file, whose paths are file names only)."""
+def resolve_recipe_paths(r: dict, base_dir: str | None, extra_dirs=()) -> dict:
+    """A copy of the recipe with every relative path that exists under base_dir (or one of extra_dirs) made
+    absolute (for recipes read back from a produced file, whose paths are file names only)."""
     def walk(v):
         if isinstance(v, dict):
-            return {k: (_resolve(x, base_dir) if k in ("file", "base", "target") and isinstance(x, str) and not x.startswith("@") else walk(x))
+            return {k: (_resolve(x, base_dir, extra_dirs) if k in PATH_KEYS and isinstance(x, str) and not x.startswith("@") else walk(x))
                     for k, x in v.items()}
         if isinstance(v, list):
             return [walk(x) for x in v]
         return v
     return walk(r)
+
+
+def recipe_inputs(r: dict) -> list[tuple[str, str]]:
+    """(role, path or file name) for every input a recipe names, in the order a report should list them."""
+    fn, out = r.get("function"), []
+    if fn == "lora_merge":
+        out = [(f"LoRA {i}", d.get("file")) for i, d in enumerate(r.get("inputs") or [], 1)]
+    elif fn == "extract":
+        out = [("base", r.get("base")), ("target", r.get("target"))]
+    elif fn == "ckpt_merge":
+        out = [(role, (r.get(role) or {}).get("file")) for role in ("A", "B", "C") if r.get(role)]
+        out += [(f"LoRA {i}", d.get("file")) for i, d in enumerate(r.get("loras") or [], 1)]
+    elif fn == "convert":
+        out = [("A", (r.get("inputs") or [{}])[0].get("file"))]
+    return [(role, p) for role, p in out if p and not str(p).startswith("@")]
+
+
+def resolution_report(r: dict, base_dir: str | None, extra_dirs=()) -> list[tuple[str, str, str | None]]:
+    """(role, name, resolved path or None) for every input, so a caller can say what it could not find."""
+    rows = []
+    for role, name in recipe_inputs(r):
+        p = _resolve(name, base_dir, extra_dirs)
+        rows.append((role, os.path.basename(name), p if p and os.path.isfile(p) else None))
+    return rows
 
 
 def validate(r: dict) -> None:
@@ -75,13 +99,16 @@ def validate(r: dict) -> None:
         raise ValueError("recipe: convert needs an input")
 
 
-def _resolve(path: str | None, base_dir: str | None) -> str | None:
+def _resolve(path: str | None, base_dir: str | None, extra_dirs=()) -> str | None:
     if path is None:
         return None
-    if base_dir and not os.path.isabs(path) and not os.path.exists(path):
-        cand = os.path.join(base_dir, path)
-        if os.path.exists(cand):
-            return cand
+    if not os.path.isabs(path) and not os.path.exists(path):
+        for d in (base_dir, *extra_dirs):
+            if not d:
+                continue
+            cand = os.path.join(d, path)
+            if os.path.exists(cand):
+                return cand
     return path
 
 

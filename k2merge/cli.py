@@ -13,6 +13,7 @@ from .formats import INT8_CLIPS, OUTPUT_FORMATS, PASSTHROUGH
 from .methods import METHODS, METHOD_LABELS
 from .advisor import GOAL_ORDER
 from .ckpt_merge import VECTOR_SOURCES
+from .meta import MODELSPEC_FIELDS
 
 
 def _shaping_arg(text: str | None) -> Shaping:
@@ -77,6 +78,37 @@ def build_parser() -> argparse.ArgumentParser:
 
     i = sub.add_parser("inspect", help="summarize safetensors files")
     i.add_argument("files", nargs="+")
+
+    mt = sub.add_parser("meta", help="show, redact, strip, set or restore the metadata of a file")
+    msub = mt.add_subparsers(dest="meta_cmd", required=True)
+    m_show = msub.add_parser("show", help="the metadata, and what a publisher should know about it")
+    m_show.add_argument("files", nargs="+", help="files or folders")
+    m_show.add_argument("--key", default=None, help="print this one key's value in full")
+    m_show.add_argument("--lineage", action="store_true", help="also trace what the file was made from")
+    m_red = msub.add_parser("redact", help="paths out of the metadata, in place by default")
+    m_red.add_argument("files", nargs="+", help="files or folders")
+    m_red.add_argument("--policy", default="basename", choices=("basename", "placeholder", "drop"),
+                       help="what a path becomes: its file name (default), a placeholder, or the whole key removed")
+    m_red.add_argument("--ss", action="store_true", help="also remove the trainer's ss_* and ot_* metadata (dataset names, tag frequencies, OneTrainer config)")
+    m_red.add_argument("--thumbnail", action="store_true", help="also remove an embedded modelspec thumbnail")
+    m_red.add_argument("--workflow", action="store_true", help="also remove an embedded ComfyUI workflow and prompt")
+    m_red.add_argument("-o", "--out", default=None, help="write copies into this folder instead of patching in place")
+    m_red.add_argument("--no-backup", action="store_true", help="do not save the original header next to the file")
+    m_red.add_argument("--dry-run", action="store_true", help="list what would change and write nothing")
+    m_str = msub.add_parser("strip", help="remove all metadata except what the file needs in order to load")
+    m_str.add_argument("file")
+    m_str.add_argument("-o", "--out", required=True, help="the new file; stripping never writes in place")
+    m_set = msub.add_parser("set", help="set the modelspec fields")
+    m_set.add_argument("file")
+    for _f, _label, _req, _hint in MODELSPEC_FIELDS:
+        m_set.add_argument("--" + _f.replace("_", "-"), default=None, help=_hint or _label)
+    m_set.add_argument("--compute-hash", action="store_true", help="fill hash_sha256 from the tensor data")
+    m_set.add_argument("-o", "--out", default=None, help="write a new file instead of patching in place")
+    m_diff = msub.add_parser("diff", help="the metadata differences between two files")
+    m_diff.add_argument("a")
+    m_diff.add_argument("b")
+    m_res = msub.add_parser("restore", help="put back the header saved before the last in place change")
+    m_res.add_argument("files", nargs="+")
 
     c = sub.add_parser("convert", help="convert a checkpoint between storage formats")
     c.add_argument("src")
@@ -194,6 +226,111 @@ def _spectrum_command(args) -> int:
     return 0
 
 
+def _expand_files(paths) -> list[str]:
+    """Folders stand for every safetensors file in them, so a scrub before an upload is one command."""
+    import glob
+    out = []
+    for p in paths:
+        out += sorted(glob.glob(os.path.join(p, "*.safetensors"))) if os.path.isdir(p) else [p]
+    return [p for p in out if not p.endswith(".header.bak")]
+
+
+def _meta_command(args, prog, log) -> int:
+    from .inspect_file import inspect_path
+    from .meta import (MODELSPEC_FIELDS, HeaderTooLong, apply_findings, data_sha256, modelspec_defaults,
+                       diff_metadata, lineage_text, metadata_rows, pretty, read_metadata, read_modelspec,
+                       restore_header, scan_metadata, set_modelspec, strip_all, write_metadata)
+
+    def put(path, meta, out):
+        """Write, and say plainly when the header has no room for a metadata that grew."""
+        try:
+            return write_metadata(path, meta, out, backup=not getattr(args, "no_backup", False), progress=prog, log=log)
+        except HeaderTooLong as e:
+            print(f"\n{e}.\nThe data would have to move, so write a new file: add -o NEWFILE.")
+            raise SystemExit(1) from None
+
+    cmd = args.meta_cmd
+    if cmd == "show":
+        for p in _expand_files(args.files):
+            print(inspect_path(p)["text"])
+            meta = read_metadata(p)
+            if args.key:
+                print(pretty(meta.get(args.key, "")) if args.key in meta else f"no key {args.key!r}")
+            elif not meta:
+                print("  no metadata")
+            else:
+                for k, n, prev in metadata_rows(meta):
+                    print(f"  {k}  ({n} chars)  {prev}")
+            found = scan_metadata(meta, "basename", training=True, thumbnail=True, workflow=True)
+            for kind, title in (("path", "paths"), ("training", "training metadata"), ("thumbnail", "thumbnail"),
+                                ("workflow", "embedded workflow")):
+                rows = [f for f in found if f.kind == kind]
+                if rows:
+                    print(f"  {title}:")
+                    for f in rows:
+                        print(f"    {f.key}: {f.describe()}" + (f"  (x{f.count})" if f.count > 1 else ""))
+            if not found:
+                print("  nothing a publisher would want removed")
+            if args.lineage:
+                print(lineage_text(p))
+            print()
+        return 0
+    if cmd == "redact":
+        changed = 0
+        for p in _expand_files(args.files):
+            meta = read_metadata(p)
+            found = scan_metadata(meta, args.policy, training=args.ss, thumbnail=args.thumbnail, workflow=args.workflow)
+            if not found:
+                print(f"{os.path.basename(p)}: nothing to redact")
+                continue
+            print(f"{os.path.basename(p)}: {len(found)} finding(s)")
+            for f in found:
+                print(f"  {f.key}: {f.describe()}")
+            if args.dry_run:
+                continue
+            out = os.path.join(args.out, os.path.basename(p)) if args.out else None
+            written, how = put(p, apply_findings(meta, found), out)
+            print(f"  -> {written} ({how})")
+            changed += 1
+        if not args.dry_run:
+            print(f"{changed} file(s) changed")
+        return 0
+    if cmd == "strip":
+        meta = read_metadata(args.file)
+        kept = strip_all(meta)
+        written, how = put(args.file, kept, args.out)
+        print(f"\n{written} ({how}): {len(meta)} metadata key(s) -> {len(kept)}"
+              + (f" ({', '.join(kept)} kept: the file does not load without it)" if kept else " (no metadata at all, as in the official files)"))
+        return 0
+    if cmd == "set":
+        meta = read_metadata(args.file)
+        cur = read_modelspec(meta)
+        vals = {f: (getattr(args, f) if getattr(args, f) is not None else cur[f]) for f, _l, _r, _h in MODELSPEC_FIELDS}
+        if args.compute_hash:
+            vals["hash_sha256"] = data_sha256(args.file, progress=prog)
+        for k, v in modelspec_defaults(inspect_path(args.file).get("kind") == "lora").items():
+            vals[k] = vals.get(k) or v
+        written, how = put(args.file, set_modelspec(meta, vals), args.out)
+        print(f"\n{written} ({how})")
+        for k, v in sorted(read_metadata(written).items()):
+            if k.startswith("modelspec."):
+                print(f"  {k} = {v}")
+        return 0
+    if cmd == "diff":
+        rows = diff_metadata(read_metadata(args.a), read_metadata(args.b))
+        if not rows:
+            print("the metadata is identical")
+        for k, x, y in rows:
+            print(f"{k}:\n  {os.path.basename(args.a)}: {'(absent)' if x is None else ' '.join(x.split())[:200]}"
+                  f"\n  {os.path.basename(args.b)}: {'(absent)' if y is None else ' '.join(y.split())[:200]}")
+        return 0
+    if cmd == "restore":
+        for p in _expand_files(args.files):
+            print(f"restored the saved header of {restore_header(p)}")
+        return 0
+    raise ValueError(cmd)
+
+
 def main(argv=None) -> int:
     ap = build_parser()
     args = ap.parse_args(argv)
@@ -226,6 +363,8 @@ def main(argv=None) -> int:
                     outs = run_candidate(rep, c, args.run, use_gpu, progress=prog, log=log, keep_intermediate=args.keep_intermediate)
                     print(f"\ncandidate '{c.label}': wrote {outs[-1]}")
             return 0
+        if args.cmd == "meta":
+            return _meta_command(args, prog, log)
         if args.cmd == "inspect":
             from .inspect_file import inspect_path
             for f in args.files:

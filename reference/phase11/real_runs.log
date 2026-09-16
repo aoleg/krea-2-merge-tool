@@ -1,0 +1,54 @@
+Phase 11c: the metadata commands on the real files, 2026-09-16
+
+Part 1: every real file, read only. redaction must fit in the header it already has.
+
+  Audrey Hepburn_v1_KREA2_OT.safetensors                     6 path(s)    redact fits: yes   strip fits: yes
+  Audrey Hepburn_v3_KREA2_OT.safetensors                     6 path(s)    redact fits: yes   strip fits: yes
+  My Stars - Joanna.safetensors                              clean        redact fits: yes   strip fits: yes
+  Casting-v3-rank32-krea2-lora-000003.safetensors            clean        redact fits: yes   strip fits: yes
+  Patterns_Krea2_2_c1-st5000.safetensors                     clean        redact fits: yes   strip fits: yes
+  japanese_fp16.safetensors                                  clean        redact fits: yes   strip fits: yes
+  Aurea_Krealism.safetensors                                 clean        redact fits: yes   strip fits: yes
+  canon_krea2.safetensors                                    clean        redact fits: yes   strip fits: yes
+  galaxyace_krea2.safetensors                                clean        redact fits: yes   strip fits: yes
+  lenovo_krea2.safetensors                                   clean        redact fits: yes   strip fits: yes
+  alk_04_raw_int8.safetensors                                4 path(s)    redact fits: yes   strip fits: yes
+  anterosXXXKrea2_unaligned.safetensors                      clean        redact fits: yes   strip fits: yes
+  anterosXXXKrea2_unaligned_int8.safetensors                 1 path(s)    redact fits: yes   strip fits: yes
+  cyberrealisticKrea2_v20_raw_int8.safetensors               3 path(s)    redact fits: yes   strip fits: yes
+  krea2_raw_int8_convrot.safetensors                         clean        redact fits: yes   strip fits: yes
+  kroma-v0.3-base-int8convrot.safetensors                    clean        redact fits: yes   strip fits: yes
+  lustify-v10-krea-raw-fp16.safetensors                      clean        redact fits: yes   strip fits: yes
+  lustify-v10-krea-raw-int8_convrot.safetensors              clean        redact fits: yes   strip fits: yes
+  raw.safetensors                                            clean        redact fits: yes   strip fits: yes
+  toiletTunesTurboV10_toiletTunesRawV10.safetensors          clean        redact fits: yes   strip fits: yes
+  unaligned_cyberrealistic_raw_int8.safetensors              clean        redact fits: yes   strip fits: yes
+  winnougans10ToesKrea2_INT8_v13.safetensors                 clean        redact fits: yes   strip fits: yes
+  anterosXXXKrea2_unaligned_turbo_int8.safetensors           3 path(s)    redact fits: yes   strip fits: yes
+  arthemyComicsKrea2_v11.safetensors                         clean        redact fits: yes   strip fits: yes
+  krea2_turbo_fp8_scaled.safetensors                         clean        redact fits: yes   strip fits: yes
+  krea2_turbo_int8_convrot.safetensors                       clean        redact fits: yes   strip fits: yes
+  turbo.safetensors                                          clean        redact fits: yes   strip fits: yes
+
+27 real files, 6 carry a path, every redaction fits in the header the file already has.
+
+Part 2: scrubbing copies.
+
+  Audrey Hepburn_v1_KREA2_OT.safetensors  (0.2 GB) copied in 0 s
+    9 metadata key(s), 3 finding(s): 6 chars of training metadata (drop); 8 chars of training metadata (drop); 21969 chars of training metadata (drop)
+    patched in place in 126 ms; data hash of 0.2 GB unchanged: True (hashing took 0 s)
+    reads back as: LoRA (diffusers, 256 modules {'lora': 256}, rank [32], applied scale [1.0])
+    LoRA parses: diffusers, 256 modules {'lora': 256}, rank [32], applied scale [1.0]
+    safetensors load_file: 512 tensors
+    undo restored the original metadata exactly
+    final: {"modelspec.architecture": "Krea-2/lora", "modelspec.sai_model_spec": "1.0.0", "modelspec.implementation": "https://github.com/huggingface/diffusers",
+
+  anterosXXXKrea2_unaligned_int8.safetensors  (12.6 GB) copied in 10 s
+    3 metadata key(s), 1 finding(s): [S: drive path] anterosXXXKrea2_unaligned.safetensor
+    patched in place in 535 ms; data hash of 12.6 GB unchanged: True (hashing took 10 s)
+    reads back as: checkpoint: quantized int8_convrot:224
+    quantized layers 224, blocks.0.attn.wq norm 157.20
+    undo restored the original metadata exactly
+    final: {"format": "pt", "merge_tool": "krea2_merge_tool 0.1.0", "merge_recipe": "{\"function\":\"ckpt_merge\",\"A\":{\"file\":\"anterosXXXKrea2_unaligned.saf
+
+The paths in this record went through the tool's own redaction: a file a record mentions keeps its name, the folders it lived in do not.

@@ -1530,7 +1530,7 @@
     {
      "function": "ckpt_merge",
      "A": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo\\arthemyComicsKrea2_v11.safetensors",
+      "file": "arthemyComicsKrea2_v11.safetensors",
       "weight": 1.0,
       "shaping": {
        "preset": "FULL",
@@ -1540,7 +1540,7 @@
       }
      },
      "B": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\raw.safetensors",
+      "file": "raw.safetensors",
       "weight": 0.4,
       "shaping": {
        "preset": "FULL",
@@ -1550,7 +1550,7 @@
       }
      },
      "C": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo_bf16\\turbo.safetensors",
+      "file": "turbo.safetensors",
       "weight": 1.0,
       "shaping": {
        "preset": "FULL",
@@ -1605,7 +1605,7 @@
     {
      "function": "ckpt_merge",
      "A": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo\\arthemyComicsKrea2_v11.safetensors",
+      "file": "arthemyComicsKrea2_v11.safetensors",
       "weight": 1.0,
       "shaping": {
        "preset": "FULL",
@@ -1615,7 +1615,7 @@
       }
      },
      "B": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\raw.safetensors",
+      "file": "raw.safetensors",
       "weight": 0.6,
       "shaping": {
        "preset": "FULL",
@@ -1625,7 +1625,7 @@
       }
      },
      "C": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo_bf16\\turbo.safetensors",
+      "file": "turbo.safetensors",
       "weight": 1.0,
       "shaping": {
        "preset": "FULL",
@@ -1680,7 +1680,7 @@
     {
      "function": "ckpt_merge",
      "A": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo\\arthemyComicsKrea2_v11.safetensors",
+      "file": "arthemyComicsKrea2_v11.safetensors",
       "weight": 1.0,
       "shaping": {
        "preset": "FULL",
@@ -1690,7 +1690,7 @@
       }
      },
      "B": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\raw.safetensors",
+      "file": "raw.safetensors",
       "weight": 1.0,
       "shaping": {
        "preset": "FULL",
@@ -1700,7 +1700,7 @@
       }
      },
      "C": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo_bf16\\turbo.safetensors",
+      "file": "turbo.safetensors",
       "weight": 1.0,
       "shaping": {
        "preset": "FULL",
@@ -1755,7 +1755,7 @@
     {
      "function": "ckpt_merge",
      "A": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo_bf16\\turbo.safetensors",
+      "file": "turbo.safetensors",
       "weight": 1.0,
       "shaping": {
        "preset": "FULL",
@@ -1765,7 +1765,7 @@
       }
      },
      "B": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo\\arthemyComicsKrea2_v11.safetensors",
+      "file": "arthemyComicsKrea2_v11.safetensors",
       "weight": 0.7,
       "shaping": {
        "preset": "FULL",
@@ -1818,7 +1818,7 @@
       }
      },
      "B": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\raw\\raw.safetensors",
+      "file": "raw.safetensors",
       "weight": 0.6,
       "shaping": {
        "preset": "FULL",
@@ -1828,7 +1828,7 @@
       }
      },
      "C": {
-      "file": "S:\\SwarmUI\\SwarmUI\\Models\\diffusion_models\\krea-2\\turbo_bf16\\turbo.safetensors",
+      "file": "turbo.safetensors",
       "weight": 1.0,
       "shaping": {
        "preset": "FULL",

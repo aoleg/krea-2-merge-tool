@@ -6,6 +6,7 @@ Merges, analyzes, extracts and converts Krea 2 diffusion models on Windows, with
 - **Analysis**: the singular value spectrum of every weight delta, the rank needed and the energy retained per layer group, a noise edge from the storage formats, and a Spectrum tab that plots it all and compares two analyses.
 - **Extract**: a LoRA from the difference between two checkpoints in any storage format.
 - **Checkpoint merge and convert**: one to three checkpoints and up to four LoRAs, nine merge methods, output in fp16, bf16, fp32, fp8, fp8 scaled or int8 convrot in the exact layout of the official Krea 2 files, or the result written as a LoRA.
+- **Metadata**: what any file says about itself, with the author's folder paths taken out of it in place in milliseconds, a strip for publishing, an editor for the model spec fields, and the recipe of a merged file loaded back into the tab that made it.
 
 Every run is described by a recipe. The recipe is stored in the output file's metadata with file names only, never folders, so a published file does not reveal where its inputs lived; it can be reloaded into the GUI, which looks for the named inputs next to the file, and reproduces the file byte for byte.
 
@@ -87,6 +88,36 @@ What to look for: a few large singular values followed by a flat tail mean a low
 
 `run.bat advise -A keep.safetensors -B donor.safetensors -C ancestor.safetensors --goal add_content` measures how two fine tunes relate in weight space and proposes merge recipes. One pass over the three files gives the size of each change relative to the weights, per group and per block zone, the cosine between the two changes and how much of one sits inside the other, the spectrum of each change, the share of change outside the linears, and whether the storage precisions match. From that a rule set writes two to four candidates for the goal, each a complete recipe with its rationale, what to expect and what to compare. Goals: add B's content and keep A stable, take B's composition, take B's style, blend two siblings, de-Turbo a Turbo fine tune (B the official Raw, C the official Turbo), or distill B minus C into a LoRA. `--save STEM` keeps the advice and its spectra, `--run DIR` executes the candidates (`--pick N` for one), and every output carries its recipe. The Advisor tab does the same in the GUI: Advise fills a table of candidates with their reasoning, a goal change re-proposes without measuring again, Load into tab puts a candidate on the checkpoint or extract tab, Run selected and Run all write the candidates into a folder, and the two changes' spectra appear on the Spectrum tab with the comparison preloaded. The advisor scales the weights to the measurements and excludes methods that cannot apply; it does not judge images, so each candidate names the fixed seed comparison that decides.
 
+## Metadata
+
+The Metadata tab shows what a file says about itself and changes it without moving a single weight. A safetensors header is a length and a JSON block in front of the data, and every tensor offset is measured from the end of it, so metadata that only shrinks can be written back by padding the rebuilt header with spaces to the length the file already has. Scrubbing a 12.6 GB checkpoint takes about half a second and leaves its data byte for byte identical; only metadata that grows needs a new file.
+
+**Redact paths** finds what a published file would reveal: Windows drive paths, UNC shares, `file://` URLs and the Linux and Colab roots, anywhere in any value, including inside the JSON blobs that trainers store. A path becomes its file name by default, or a placeholder, or takes its key with it, and each finding can be skipped. Three categories are opt in and remove their key whole: the trainers' metadata (`ss_*`, `sshs_*`, `ot_*`, which is where dataset folders and tag frequencies live), an embedded thumbnail, and an embedded ComfyUI workflow and prompt. The original header is saved next to the file first, so **Undo** is exact.
+
+**Strip all metadata** writes a new file with nothing left but what the file needs in order to load. On an fp8 scaled checkpoint that is `_quantization_metadata`, the layer table the loader reads; on a bf16 or int8 convrot file it is nothing at all, exactly like the official releases.
+
+**The editor** writes the model spec fields (title, author, description, license, trigger phrase, the required architecture, implementation and resolution), and says before you apply whether the header has room or a new file is needed. `Krea-2` and `Krea-2/lora` are the architecture strings the real Krea 2 trainers write. The data hash is the sha256 of the tensor data, which is the one hash a metadata edit does not change.
+
+**Load recipe into tab** takes a file this tool made back to the tab it came from and says which of its inputs it could find; **Lineage** follows those inputs' own recipes and prints how the file was made, step by step.
+
+Merges keep this honest at the source: the metadata a merge inherits from its inputs is redacted the same way, so a trainer's dataset folders are not republished by every file built on top of it.
+
+```bash
+run.bat meta show model.safetensors --lineage
+```
+
+```bash
+run.bat meta redact S:\models\krea-2 --ss --thumbnail
+```
+
+```bash
+run.bat meta strip model.safetensors -o model_clean.safetensors
+```
+
+```bash
+run.bat meta set model.safetensors --title "Anteros + Kroma 0.15" --author me --compute-hash -o described.safetensors
+```
+
 ## Checkpoint merge methods and what the weight means
 
 A is the primary checkpoint and always has weight 1. B is the secondary with weight w. C is the optional reference, the common ancestor of A and B, usually the official Turbo file.
@@ -150,6 +181,10 @@ run.bat spectrum finetune_vs_raw.spectrum.json other_run.spectrum.json
 
 ```bash
 run.bat run my_recipe.json
+```
+
+```bash
+run.bat meta redact S:\models\krea-2
 ```
 
 LoRA and checkpoint arguments take the form `FILE|WEIGHT|SHAPING`, where SHAPING is `PRESET:MODIFIER:CONTRAST[:BOOST][@NONBLOCK]`.

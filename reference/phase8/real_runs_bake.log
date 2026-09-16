@@ -15,7 +15,7 @@
    878 tensors in 68s, verify ok, max read back error 0.0068
    structure vs official int8: identical
    recipe in metadata: ckpt_merge, 1 LoRA(s)
-   kept T:\claude\github2\lora\krea2LoraMergeTool_v10\samples\scratchpad\turbo_joanna_int8.safetensors for a load test in ComfyUI / Forge Neo
+   kept turbo_joanna_int8.safetensors for a load test in ComfyUI / Forge Neo
    (bake: 68s total)
 
 exit 0

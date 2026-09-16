@@ -1,0 +1,182 @@
+Phase 11c: metadata of the real sample LoRAs and the community checkpoints, read from the headers.
+
+=== sample LoRAs: character  (3 files)
+  Audrey Hepburn_v1_KREA2_OT.safetensors  0.2 GB, 512 tensors, header 91720 B, 9 metadata key(s)
+      keys: ot_config(21969), modelspec.hash_sha256(66), modelspec.implementation(40), modelspec.architecture(11), modelspec.title(11), modelspec.date(10), ot_revision(8), ot_branch(6)
+      training metadata: ot_branch, ot_revision, ot_config
+  Audrey Hepburn_v3_KREA2_OT.safetensors  0.2 GB, 512 tensors, header 91752 B, 9 metadata key(s)
+      keys: ot_config(22000), modelspec.hash_sha256(66), modelspec.implementation(40), modelspec.title(11), modelspec.architecture(11), modelspec.date(10), ot_revision(8), ot_branch(6)
+      training metadata: ot_branch, ot_revision, ot_config
+  My Stars - Joanna.safetensors  0.2 GB, 512 tensors, header 64880 B, 45 metadata key(s)
+      keys: software(92), sshs_model_hash(64), ss_sd_model_name(61), ss_optimizer(55), ss_dataset_dirs(46), notes(45), ss_output_name(34), training_info(27)
+      training metadata: ss_sd_model_name, ss_mixed_precision, ss_full_fp16, ss_num_epochs, ss_noise_offset, ss_batch_size, ss_lowram, ss_v2, ss_gradient_checkpointing, ss_dataset_dirs ...
+
+=== sample LoRAs: concept  (3 files)
+  Casting-v3-rank32-krea2-lora-000003.safetensors  0.4 GB, 792 tensors, header 91272 B, 48 metadata key(s)
+      keys: ss_datasets(202), sshs_model_hash(64), ss_optimizer(34), modelspec.implementation(33), modelspec.title(28), ss_output_name(28), ss_vae_name(26), ss_sd_model_name(26)
+      training metadata: ss_base_model_version, ss_num_epochs, ss_network_dropout, ss_num_batches_per_epoch, ss_epoch, ss_training_started_at, ss_learning_rate, ss_network_alpha, ss_lr_scheduler, ss_optimizer ...
+  Patterns_Krea2_2_c1-st5000.safetensors  0.4 GB, 528 tensors, header 69840 B, 13 metadata key(s)
+      keys: url(35), base_model(27), repoId(25), time(19), source(19), remove_prefix_in_ckpt(9), author(8), trigger_word(8)
+  japanese_fp16.safetensors  0.2 GB, 448 tensors, header 58096 B, 0 metadata key(s)
+
+=== sample LoRAs: style  (4 files)
+  Aurea_Krealism.safetensors  0.2 GB, 512 tensors, header 64880 B, 45 metadata key(s)
+      keys: software(92), sshs_model_hash(64), ss_sd_model_name(61), ss_optimizer(55), ss_dataset_dirs(46), notes(45), ss_output_name(34), training_info(26)
+      training metadata: ss_gradient_checkpointing, ss_noise_offset, ss_v2, ss_num_epochs, ss_text_encoder_lr, ss_network_module, ss_cache_latents, ss_network_dim, sshs_model_hash, ss_optimizer ...
+  canon_krea2.safetensors  0.1 GB, 512 tensors, header 62712 B, 9 metadata key(s)
+      keys: software(92), sshs_model_hash(64), training_info(27), name(11), ss_output_name(11), sshs_legacy_hash(8), ss_base_model_version(5), version(3)
+      training metadata: sshs_model_hash, ss_base_model_version, ss_output_name, sshs_legacy_hash
+  galaxyace_krea2.safetensors  0.1 GB, 512 tensors, header 63232 B, 9 metadata key(s)
+      keys: software(92), sshs_model_hash(64), training_info(27), ss_output_name(15), name(15), sshs_legacy_hash(8), ss_base_model_version(5), version(3)
+      training metadata: sshs_legacy_hash, ss_base_model_version, ss_output_name, sshs_model_hash
+  lenovo_krea2.safetensors  0.1 GB, 512 tensors, header 62720 B, 9 metadata key(s)
+      keys: software(92), sshs_model_hash(64), training_info(27), name(17), ss_output_name(17), sshs_legacy_hash(8), ss_base_model_version(5), version(3)
+      training metadata: ss_base_model_version, ss_output_name, sshs_model_hash, sshs_legacy_hash
+
+=== checkpoints: raw  (12 files)
+  alk_04_raw_int8.safetensors  12.6 GB, 878 tensors, header 90552 B, 3 metadata key(s)
+      keys: merge_recipe(1298), merge_tool(22), format(2)
+      PATH  merge_recipe: [S: drive path] anterosXXXKrea2_unaligned.safetensors  ->  anterosXXXKrea2_unaligned.safetensors
+      PATH  merge_recipe: [S: drive path] lustify-v10-krea-raw-fp16.safetensors  ->  lustify-v10-krea-raw-fp16.safetensors
+      PATH  merge_recipe: [S: drive path] raw.safetensors  ->  raw.safetensors
+      PATH  merge_recipe: [S: drive path] kroma-v0.2_and_v0.3-base-lora-r384-custom_cwb_merge-no-reupload.safetensors  ->  kroma-v0.2_and_v0.3-base-lora-r384-custom_cwb_merge-no-reupload.safetensors
+  anterosXXXKrea2_unaligned.safetensors  24.5 GB, 430 tensors, header 43728 B, 0 metadata key(s)
+  anterosXXXKrea2_unaligned_int8.safetensors  12.6 GB, 878 tensors, header 89808 B, 3 metadata key(s)
+      keys: merge_recipe(659), merge_tool(22), format(2)
+      PATH  merge_recipe: [S: drive path] anterosXXXKrea2_unaligned.safetensors  ->  anterosXXXKrea2_unaligned.safetensors
+  cyberrealisticKrea2_v20_raw_int8.safetensors  12.6 GB, 878 tensors, header 110616 B, 6 metadata key(s)
+      keys: merge_recipe(1031), description(45), homepage(35), merge_tool(22), author(10), format(2)
+      PATH  merge_recipe: [S: drive path] cyberrealisticKrea2_v20_bf16.safetensors  ->  cyberrealisticKrea2_v20_bf16.safetensors
+      PATH  merge_recipe: [S: drive path] raw.safetensors  ->  raw.safetensors
+      PATH  merge_recipe: [S: drive path] turbo.safetensors  ->  turbo.safetensors
+  krea2_raw_int8_convrot.safetensors  12.6 GB, 878 tensors, header 87816 B, 0 metadata key(s)
+  kroma-v0.3-base-int8convrot.safetensors  13.2 GB, 878 tensors, header 119976 B, 1 metadata key(s)
+      keys: _quantization_metadata(28489)
+      load bearing: _quantization_metadata
+  lustify-v10-krea-raw-fp16.safetensors  24.5 GB, 430 tensors, header 44952 B, 0 metadata key(s)
+  lustify-v10-krea-raw-int8_convrot.safetensors  12.2 GB, 686 tensors, header 96736 B, 2 metadata key(s)
+      keys: _quantization_metadata(24949), converted_by(29)
+      load bearing: _quantization_metadata
+  raw.safetensors  24.5 GB, 430 tensors, header 43728 B, 0 metadata key(s)
+  toiletTunesTurboV10_toiletTunesRawV10.safetensors  12.2 GB, 686 tensors, header 117464 B, 2 metadata key(s)
+      keys: _quantization_metadata(30581), converted_by(29)
+      load bearing: _quantization_metadata
+  unaligned_cyberrealistic_raw_int8.safetensors  12.6 GB, 878 tensors, header 90080 B, 3 metadata key(s)
+      keys: merge_recipe(881), merge_tool(22), format(2)
+  winnougans10ToesKrea2_INT8_v13.safetensors  13.2 GB, 878 tensors, header 139560 B, 3 metadata key(s)
+      keys: _quantization_metadata(26249), workflow(2071), prompt(515)
+      load bearing: _quantization_metadata
+
+=== checkpoints: turbo  (4 files)
+  anterosXXXKrea2_unaligned_turbo_int8.safetensors  12.6 GB, 878 tensors, header 90192 B, 3 metadata key(s)
+      keys: merge_recipe(1000), merge_tool(22), format(2)
+      PATH  merge_recipe: [S: drive path] anterosXXXKrea2_unaligned.safetensors  ->  anterosXXXKrea2_unaligned.safetensors
+      PATH  merge_recipe: [S: drive path] turbo.safetensors  ->  turbo.safetensors
+      PATH  merge_recipe: [S: drive path] raw.safetensors  ->  raw.safetensors
+  arthemyComicsKrea2_v11.safetensors  12.2 GB, 686 tensors, header 96752 B, 3 metadata key(s)
+      keys: _quantization_metadata(24949), converted_by(29), format(2)
+      load bearing: _quantization_metadata
+  krea2_turbo_fp8_scaled.safetensors  12.2 GB, 686 tensors, header 85320 B, 2 metadata key(s)
+      keys: _quantization_metadata(16860), format(2)
+      load bearing: _quantization_metadata
+  krea2_turbo_int8_convrot.safetensors  12.6 GB, 878 tensors, header 87816 B, 0 metadata key(s)
+
+=== checkpoints: turbo_bf16  (1 files)
+  turbo.safetensors  24.5 GB, 430 tensors, header 43728 B, 0 metadata key(s)
+
+27 files, 4 with a path in their metadata
+
+keys seen, by number of files:
+   12  format
+    6  _quantization_metadata
+    6  ss_base_model_version   (training)
+    6  ss_output_name   (training)
+    6  sshs_legacy_hash   (training)
+    6  sshs_model_hash   (training)
+    5  merge_recipe
+    5  merge_tool
+    5  modelspec.architecture
+    5  modelspec.date
+    5  modelspec.implementation
+    5  modelspec.sai_model_spec
+    5  modelspec.title
+    5  name
+    5  software
+    5  training_info
+    5  version
+    3  converted_by
+    3  modelspec.resolution
+    3  ss_epoch   (training)
+    3  ss_full_fp16   (training)
+    3  ss_gradient_accumulation_steps   (training)
+    3  ss_gradient_checkpointing   (training)
+    3  ss_learning_rate   (training)
+    3  ss_lr_scheduler   (training)
+    3  ss_max_grad_norm   (training)
+    3  ss_max_train_steps   (training)
+    3  ss_mixed_precision   (training)
+    3  ss_network_alpha   (training)
+    3  ss_network_dim   (training)
+    3  ss_network_module   (training)
+    3  ss_num_batches_per_epoch   (training)
+    3  ss_num_epochs   (training)
+    3  ss_optimizer   (training)
+    3  ss_sd_model_name   (training)
+    3  ss_steps   (training)
+    2  author
+    2  modelspec.hash_sha256
+    2  notes
+    2  ot_branch   (training)
+    2  ot_config   (training)
+    2  ot_revision   (training)
+    2  ss_batch_size   (training)
+    2  ss_cache_latents   (training)
+    2  ss_caption_dropout_rate   (training)
+    2  ss_dataset_dirs   (training)
+    2  ss_lowram   (training)
+    2  ss_noise_offset   (training)
+    2  ss_num_reg_images   (training)
+    2  ss_num_train_images   (training)
+    2  ss_tag_frequency   (training)
+    2  ss_text_encoder_lr   (training)
+    2  ss_unet_lr   (training)
+    2  ss_v2   (training)
+    1  base_model
+    1  description
+    1  homepage
+    1  learning_rate
+    1  lora_base_model
+    1  lora_rank
+    1  max_pixels
+    1  prompt
+    1  remove_prefix_in_ckpt
+    1  repoId
+    1  source
+    1  ss_datasets   (training)
+    1  ss_discrete_flow_shift   (training)
+    1  ss_fp8_base   (training)
+    1  ss_full_bf16   (training)
+    1  ss_gradient_checkpointing_cpu_offload   (training)
+    1  ss_guidance_scale   (training)
+    1  ss_logit_mean   (training)
+    1  ss_logit_std   (training)
+    1  ss_lr_warmup_steps   (training)
+    1  ss_mode_scale   (training)
+    1  ss_network_dropout   (training)
+    1  ss_num_train_items   (training)
+    1  ss_seed   (training)
+    1  ss_session_id   (training)
+    1  ss_sigmoid_scale   (training)
+    1  ss_timestep_sampling   (training)
+    1  ss_training_comment   (training)
+    1  ss_training_finished_at   (training)
+    1  ss_training_started_at   (training)
+    1  ss_vae_name   (training)
+    1  ss_weighting_scheme   (training)
+    1  time
+    1  training_steps
+    1  trigger_word
+    1  url
+    1  workflow
+
+The paths in this record went through the tool's own redaction: a file a record mentions keeps its name, the folders it lived in do not.

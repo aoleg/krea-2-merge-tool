@@ -57,6 +57,7 @@ class CkptMergeOptions:
     int8_clip: str = "mse"            # mse (reproduces the official int8 file) | absmax
     vectors_from: str = "merge"       # merge | A | B | C: norm scales, modulation vectors and biases merged like the rest, or copied from one input
     keep_metadata: bool = True
+    redact_inherited: bool = True     # strip paths out of the metadata inherited from A (a trainer's dataset folders, an upstream recipe)
     lora_mode: str = "after"          # after | task_vectors (TIES / DARE)
     output_as_lora: bool = False
     lora_out: dict = field(default_factory=lambda: {"rank": 32, "naming": "comfy", "dtype": "fp16", "method": "randomized"})
@@ -323,7 +324,7 @@ def merge_checkpoints(A: CkptInput, B: CkptInput | None, C: CkptInput | None, lo
                                  compute_for=compute_for, touched_keys=touched)
         plan.notes.extend(ctx.warnings)
         plan.int8_clip = opts.int8_clip
-        meta = build_metadata(plan, ctx.A.reader.metadata, recipe, opts.keep_metadata)
+        meta = build_metadata(plan, ctx.A.reader.metadata, recipe, opts.keep_metadata, opts.redact_inherited)
         inputs = tuple(i.path for i in [A, B, C] + list(loras) if i is not None)
         return execute_plan(plan, out_path, meta, ctx.device, progress, cancel, log, input_paths=inputs)
     finally:

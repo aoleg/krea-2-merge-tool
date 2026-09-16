@@ -11,6 +11,7 @@ samples/
 comfy-model-tools/
 !reference/phase8/*.log
 !reference/phase9/*.log
+!reference/phase11/*.log
 settings.json
 
 # Specifications and planning documents
