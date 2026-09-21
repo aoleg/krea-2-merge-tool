@@ -47,6 +47,9 @@ def plan_lora_merge(inputs: list[LoraInput], opts: LoraMergeOptions) -> str:
             lines.append(f"exact concatenation then SVD truncation ({opts.rank_mode}); run Analyze for the energy retained")
         else:
             lines.append("a LoKr or full delta input forces materialization and SVD (lossy); run Analyze for the rank")
+        if opts.rank_mode == "dynamic":
+            lines.append(f"dynamic rank: every module keeps the smallest rank that holds {opts.retention:.3f} of its energy, "
+                         f"floor {opts.rank_floor}, cap {opts.rank_cap if opts.rank_cap else 'none'}; run Analyze for the ranks and the size")
         n = len(chosen)
         lines.append(f"output: {n} modules, {opts.naming} naming, {opts.dtype}")
         unknown = [names[c] for c in chosen if "." not in names[c] and "_" in names[c]]

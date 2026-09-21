@@ -52,6 +52,10 @@ Shaping of a checkpoint applies to the second checkpoint only. It scales that ch
 
 Timestep scheduling cannot be baked into a file and is not offered.
 
+## Prune a LoRA
+
+The Prune LoRA tab makes a smaller file out of one LoRA. Every module keeps the smallest rank whose energy reaches a retention you type (0.500 to 1.000, three decimals), raised to a floor and cut at a cap, so a module whose change is simple gets a low rank and a module that needs its rank keeps it up to the cap. The input's strength and block shaping apply before the SVD, so a suppressed zone needs fewer components and a zeroed zone is dropped. Analyze runs the LoRA analysis once and shows the plan: for the whole file, per group and per block, the modules, their share of the change, the rank in and out, the retention actually achieved, the size before and after, and how many modules the cap held. Replan recomputes the table for new settings from the same spectra. The cap decides the size and the retention decides where the cap does not bind; on a trained rank-32 LoRA the cap binds on most modules once the retention passes about 0.99, so read the achieved figure, not the requested one. The output carries an ordinary LoRA merge recipe with the rule in it and reproduces byte for byte. Check a pruned LoRA against its source at fixed seeds and across seeds before publishing; the tool measures energy, not likeness.
+
 ## Spectrum analysis
 
 Analyze on the LoRA merge tab and on the Extract tab computes the full singular value spectrum of every module delta, one module at a time on the GPU, without writing anything. The log gets the report; the Spectrum tab gets the plots.
@@ -161,6 +165,10 @@ run.bat lora-merge "character.safetensors|1|STYLE:Suppress:0.5" -o character_cle
 
 ```bash
 run.bat extract krea2_turbo_bf16.safetensors finetune.safetensors -o finetune_lora.safetensors --rank 32 --analyze
+```
+
+```bash
+run.bat lora-merge "character.safetensors|1" -o character_pruned.safetensors --dynamic --retention 0.995 --rank-cap 16 --analyze
 ```
 
 ```bash

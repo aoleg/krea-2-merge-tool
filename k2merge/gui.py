@@ -30,6 +30,7 @@ from .lora_merge import LoraInput, LoraMergeOptions
 from .methods import ADVANCED, METHODS, METHOD_LABELS, NEEDS_C
 from .spectrum_tab import SpectrumTab
 from .advisor_tab import AdvisorTab
+from .prune_tab import PruneTab
 from .meta_tab import MetaTab
 
 ST_FILES = [("safetensors", "*.safetensors"), ("all files", "*.*")]
@@ -1340,6 +1341,7 @@ class MergeApp(tk.Tk):
         self.nb = ttk.Notebook(self)
         self.nb.pack(fill="both", expand=True, padx=px(10), pady=(px(8), px(4)))
         self.tab_lora = LoraMergeTab(self.nb, self)
+        self.tab_prune = PruneTab(self.nb, self)
         self.tab_extract = ExtractTab(self.nb, self)
         self.tab_ckpt = CkptTab(self.nb, self)
         self.tab_spectrum = SpectrumTab(self.nb, self)
@@ -1347,6 +1349,7 @@ class MergeApp(tk.Tk):
         self.tab_advisor = AdvisorTab(self.nb, self)
         self.tab_meta = MetaTab(self.nb, self)
         self.nb.add(self.tab_lora, text="LoRA merge")
+        self.nb.add(self.tab_prune, text="Prune LoRA")
         self.nb.add(self.tab_extract, text="Extract LoRA")
         self.nb.add(self.tab_ckpt, text="Checkpoint merge / convert")
         self.nb.add(self.tab_advisor, text="Advisor")
@@ -1429,6 +1432,8 @@ class MergeApp(tk.Tk):
             self.log(f"  {role}: {name}" + (f" -> {q}" if q else "   NOT FOUND, fill this slot by hand"))
         r = resolve_recipe_paths(r, base, extra)   # stored recipes hold file names only
         target = {"lora_merge": self.tab_lora, "extract": self.tab_extract, "ckpt_merge": self.tab_ckpt, "convert": self.tab_ckpt}[r["function"]]
+        if r["function"] == "lora_merge" and (r.get("options") or {}).get("rank_mode") == "dynamic":
+            target = self.tab_prune          # a pruning recipe belongs on the Prune tab
         if r["function"] == "convert":
             r = {"function": "ckpt_merge", "A": {"file": r["inputs"][0]["file"]}, "loras": [],
                  "options": {"output_format": r.get("output_format", "bf16"), "passthrough": r.get("passthrough", "official"),

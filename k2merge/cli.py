@@ -123,6 +123,10 @@ def build_parser() -> argparse.ArgumentParser:
     lm.add_argument("-o", "--output", required=True)
     lm.add_argument("--average", action="store_true")
     lm.add_argument("--rank", type=int, default=None, help="SVD truncate to this rank")
+    lm.add_argument("--dynamic", action="store_true", help="prune: every module keeps the smallest rank that holds --retention of its energy, within --rank-floor and --rank-cap")
+    lm.add_argument("--retention", type=float, default=0.99, help="with --dynamic: energy kept per module, 0.5 to 1.0 (default 0.99)")
+    lm.add_argument("--rank-cap", type=int, default=16, help="with --dynamic: no module above this rank; 0 = no cap (default 16)")
+    lm.add_argument("--rank-floor", type=int, default=1, help="with --dynamic: no module below this rank (default 1)")
     lm.add_argument("--union", action="store_true", help="keep modules present in any input")
     lm.add_argument("--naming", default="comfy", choices=["comfy", "kohya", "input"])
     lm.add_argument("--dtype", default="fp16", choices=["fp16", "bf16", "fp32"])
@@ -391,17 +395,23 @@ def main(argv=None) -> int:
         if args.cmd == "lora-merge":
             from .lora_merge import LoraMergeOptions, analyze_lora_merge, merge_loras
             inputs = [_lora_arg(t) for t in args.inputs]
-            opts = LoraMergeOptions(average=args.average, rank_mode="fixed" if args.rank else "concat", rank=args.rank,
-                                    modules="union" if args.union else "intersection", naming=args.naming, dtype=args.dtype)
+            opts = LoraMergeOptions(average=args.average, rank_mode="dynamic" if args.dynamic else ("fixed" if args.rank else "concat"),
+                                    rank=args.rank, modules="union" if args.union else "intersection", naming=args.naming, dtype=args.dtype,
+                                    retention=min(1.0, max(0.5, args.retention)), rank_cap=args.rank_cap or None, rank_floor=max(1, args.rank_floor))
             if args.plan:
                 from .plan import plan_lora_merge
                 print(plan_lora_merge(inputs, opts))
                 return 0
             if args.analyze:
-                return _finish_analysis(analyze_lora_merge(inputs, opts, use_gpu, progress=prog), args)
+                rep = analyze_lora_merge(inputs, opts, use_gpu, progress=prog)
+                rc = _finish_analysis(rep, args)
+                if args.dynamic:
+                    from .lora_merge import prune_plan, prune_text
+                    print("\n" + prune_text(prune_plan(rep, opts.retention, opts.rank_cap, opts.rank_floor, opts.dtype)))
+                return rc
             res = merge_loras(inputs, args.output, opts, use_gpu, progress=prog, log=log)
             print(f"\nwrote {res.path}: {res.modules} modules, rank {res.rank_min}-{res.rank_max}, "
-                  f"energy kept >= {res.kept_min * 100:.2f}%, {len(res.dropped)} dropped")
+                  f"energy kept >= {res.kept_min * 100:.2f}%, {len(res.dropped)} dropped, {res.size_bytes / 1e6:.1f} MB")
             return 0
         if args.cmd == "extract":
             from .extract import ExtractOptions, analyze_extract, extract_lora
