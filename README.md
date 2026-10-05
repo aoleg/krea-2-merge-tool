@@ -20,7 +20,7 @@ Every run is described by a recipe. The recipe is stored in the output file's me
 2. Run `install.bat`. It creates `venv`, installs torch from the PyTorch CUDA index (never the CPU only PyPI build), installs the other dependencies and runs a self check.
 3. Run `run.bat` for the GUI. `run.bat --help` shows the CLI.
 
-The GUI follows the display DPI and the Windows text size setting (Settings > Accessibility > Text size), which classic Windows programs otherwise ignore. The Scale box in the top right overrides it with a fixed 100 to 200 percent and applies at once. Theme and scale are remembered in `settings.json` next to the tool, or given on the command line with `--theme` and `--scale`.
+The GUI follows the display DPI and the Windows text size setting (Settings > Accessibility > Text size), which classic Windows programs otherwise ignore. The Scale box in the top right overrides it with a fixed 50 to 200 percent and applies at once; a scale below 100 percent fits more on a small screen with large Windows scaling. When the window is smaller than the layout, scroll bars appear and the whole window scrolls with the bars or the mouse wheel (Shift + wheel scrolls sideways). Over a text box or a table with more content than it shows, the wheel scrolls that box instead. Each text box and table has a grip under it: drag it to make the box taller or shorter, and double click it to restore the default height. Theme, scale and box heights are remembered in `settings.json` next to the tool; theme and scale can also be given on the command line with `--theme` and `--scale`.
 
 The tool needs a Krea 2 diffusion model file. The text encoder and the VAE are separate files and are never touched.
 

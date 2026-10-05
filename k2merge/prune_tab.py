@@ -24,7 +24,7 @@ def _mb(n: int) -> str:
 
 class PruneTab(ttk.Frame):
     def __init__(self, master, app):
-        from .gui import PAD, FileSlot, RowList, _labeled, px
+        from .gui import PAD, FileSlot, ResizeGrip, RowList, _labeled, px
         super().__init__(master, padding=px(8))
         self.app = app
         self.rep = None
@@ -82,6 +82,7 @@ class PruneTab(ttk.Frame):
         self.table.configure(yscrollcommand=sb.set)
         self.table.pack(side="left", fill="both", expand=True)
         sb.pack(side="right", fill="y")
+        ResizeGrip(res, app, self.table, "prune.table", min_rows=3).pack(fill="x")
 
     # ---- settings
     def _normalize(self):

@@ -25,7 +25,7 @@ JSON_EXPORT = [("metadata", "*.json"), ("all files", "*.*")]
 
 class MetaTab(ttk.Frame):
     def __init__(self, master, app):
-        from .gui import PAD, ST_FILES, Collapsible, FileSlot, px
+        from .gui import PAD, ST_FILES, Collapsible, FileSlot, ResizeGrip, px
         super().__init__(master, padding=px(8))
         self.app = app
         self.px = px
@@ -54,6 +54,7 @@ class MetaTab(ttk.Frame):
                                font=tkfont.nametofont("TkDefaultFont"))
         self.summary.pack(fill="both", expand=True)
         self.summary.configure(state="disabled")
+        ResizeGrip(left, app, self.summary, "meta.summary").pack(fill="x")
         row = ttk.Frame(left)
         row.pack(fill="x", pady=(px(4), 0))
         ttk.Button(row, text="Data hash", command=self.hash_data).pack(side="left")
@@ -74,10 +75,12 @@ class MetaTab(ttk.Frame):
             self.table.column(c, width=px(w), anchor="w", stretch=c == "value")
         self.table.pack(fill="x")
         self.table.bind("<<TreeviewSelect>>", lambda _e: self._show_value())
+        ResizeGrip(right, app, self.table, "meta.table").pack(fill="x")
         self.detail = tk.Text(right, height=4, width=46, wrap="none", relief="solid", borderwidth=1,
                               font=tkfont.nametofont("TkFixedFont"))
         self.detail.pack(fill="both", expand=True, pady=(px(4), 0))
         self.detail.configure(state="disabled")
+        ResizeGrip(right, app, self.detail, "meta.detail").pack(fill="x")
 
         fnd = ttk.LabelFrame(self, text="Findings: what a published file would reveal", padding=px(6))
         fnd.pack(fill="x", pady=px(4))
@@ -109,6 +112,7 @@ class MetaTab(ttk.Frame):
             self.ftable.heading(c, text=txt)
             self.ftable.column(c, width=px(w), anchor="w", stretch=c == "what")
         self.ftable.pack(fill="x", pady=(px(4), 0))
+        ResizeGrip(fnd, app, self.ftable, "meta.findings").pack(fill="x")
         self.ftable.bind("<Double-1>", lambda _e: self.cycle_action())
         ttk.Label(fnd, text="double click a finding to change what happens to it; skip leaves it alone",
                   style="Hint.TLabel").pack(anchor="w", pady=(px(2), 0))

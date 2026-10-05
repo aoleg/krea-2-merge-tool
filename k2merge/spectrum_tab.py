@@ -196,6 +196,8 @@ class SpectrumTab(ttk.Frame):
         self.table.configure(yscrollcommand=self.tsb.set)
         self.tsb.grid(row=2, column=2, sticky="ns", pady=(P(4), 0))
         self.table.bind("<Double-1>", self._table_open)
+        from .gui import ResizeGrip
+        ResizeGrip(self.body, app, self.table, "spectrum.table").grid(row=3, column=0, columnspan=3, sticky="ew")
         self.redraw()
 
     # ---- helpers

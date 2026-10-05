@@ -19,7 +19,7 @@ ADVICE_FILES = [("saved advice", "*.advice.json"), ("all files", "*.*")]
 
 class AdvisorTab(ttk.Frame):
     def __init__(self, master, app):
-        from .gui import PAD, FileSlot, _labeled, px
+        from .gui import PAD, FileSlot, ResizeGrip, _labeled, px
         super().__init__(master, padding=px(8))
         self.app = app
         self.rep: AdvisorReport | None = None
@@ -75,10 +75,12 @@ class AdvisorTab(ttk.Frame):
             self.table.heading(c, text=txt)
             self.table.column(c, width=px(w), anchor="w", stretch=c != "n")
         self.table.pack(fill="x", pady=(px(4), 0))
+        ResizeGrip(res, app, self.table, "advisor.table").pack(fill="x")
         self.table.bind("<<TreeviewSelect>>", lambda _e: self._show_detail())
         self.detail = tk.Text(res, height=5, wrap="word", relief="solid", borderwidth=1, font=tkfont.nametofont("TkDefaultFont"))
         self.detail.pack(fill="both", expand=True, pady=(px(4), 0))
         self.detail.configure(state="disabled")
+        ResizeGrip(res, app, self.detail, "advisor.detail").pack(fill="x")
         app.themed.append(self)
 
     # ---- helpers

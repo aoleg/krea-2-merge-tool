@@ -1,8 +1,10 @@
 """Tkinter GUI. The window only assembles recipes and hands them to the engine.
 
 Native Windows look (ttk "vista" theme where available), DPI aware, following
-the Windows text size setting (or a remembered UI scale), with the system font
-one size larger than the default. Controls that do not apply are
+the Windows text size setting (or a remembered UI scale from 50 to 200 percent),
+with the system font one size larger than the default. The window body scrolls
+when the window is smaller than the layout, and text boxes and tables have a
+grip that changes their height. Controls that do not apply are
 hidden: block shaping unfolds when a preset other than FULL is chosen, method
 parameters appear for the methods that use them, LoRA rows are added on
 demand, and the rarely needed output options sit behind a toggle.
@@ -65,13 +67,14 @@ def save_settings(d: dict) -> None:
 JSON_FILES = [("recipe", "*.json"), ("all files", "*.*")]
 STEP = 0.05
 PAD = {"padx": 6, "pady": 3}          # grid cell padding, rescaled by px() at start-up
-SCALES = ("auto", "100", "125", "150", "175", "200")   # UI scale setting; auto = display DPI x Windows text size
+SCALES = ("auto", "50", "67", "75", "80", "90", "100", "110", "125", "150", "175", "200")   # auto = Windows text size
 _S = 1.0                               # the UI scale in effect (set once by MergeApp before any widget is built)
 
 
 def px(n: int) -> int:
-    """A pixel size from the 100 % layout, scaled to the current UI scale."""
-    return int(round(n * _S))
+    """A pixel size from the 100 % layout, scaled to the current UI scale. A positive size stays at least 1."""
+    v = int(round(n * _S))
+    return max(v, 1) if n > 0 else v
 
 
 def text_scale_factor() -> float:
@@ -167,6 +170,152 @@ class Collapsible(ttk.Frame):
         if bool(value) != self.open.get():
             self.open.set(bool(value))
             self._toggle()
+
+
+class ScrollPage(ttk.Frame):
+    """The window body on a canvas. When the window is smaller than the layout needs (a large UI scale on a small
+    screen), scroll bars appear and the body scrolls by the bars or the mouse wheel; when the window is larger, the
+    body fills it and its expanding parts grow as before. The page requests nothing: the app sizes the window."""
+
+    def __init__(self, master):
+        super().__init__(master)
+        self.canvas = tk.Canvas(self, width=1, height=1, highlightthickness=0, borderwidth=0)
+        self.canvas.no_rescale = True
+        self.vsb = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.hsb = ttk.Scrollbar(self, orient="horizontal", command=self.canvas.xview)
+        self.canvas.configure(yscrollcommand=self.vsb.set, xscrollcommand=self.hsb.set)
+        self.body = ttk.Frame(self.canvas)
+        self._item = self.canvas.create_window(0, 0, window=self.body, anchor="nw")
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+        self.vsb.grid(row=0, column=1, sticky="ns")
+        self.hsb.grid(row=1, column=0, sticky="ew")
+        self.vsb.grid_remove()
+        self.hsb.grid_remove()
+        self.rowconfigure(0, weight=1)
+        self.columnconfigure(0, weight=1)
+        self._req = None
+        self._bars = (False, False)
+        self.bind("<Configure>", lambda _e: self.layout())
+        self.after(150, self._watch)
+
+    def _watch(self):
+        """Tk has no event for a changed request (a row added, a box resized, a rescale), so look for one."""
+        try:
+            self.check()
+            self.after(150, self._watch)
+        except tk.TclError:                         # destroyed
+            pass
+
+    def check(self):
+        req = (self.body.winfo_reqwidth(), self.body.winfo_reqheight())
+        if req != self._req:
+            self._req = req
+            self.layout()
+
+    def refresh(self):
+        """Lay out at once after a change, instead of at the next look."""
+        self.update_idletasks()
+        self.check()
+
+    def layout(self):
+        """Size the body to max(window, request) and show the bars that are needed. The decision uses the size of
+        the whole page, which does not change when a bar comes or goes, so it cannot oscillate."""
+        W, H = self.winfo_width(), self.winfo_height()
+        if W <= 1 or H <= 1:
+            return
+        rw, rh = self.body.winfo_reqwidth(), self.body.winfo_reqheight()
+        sw, sh = self.vsb.winfo_reqwidth(), self.hsb.winfo_reqheight()
+        need_v, need_h = rh > H, rw > W
+        need_h = need_h or (need_v and rw > W - sw)
+        need_v = need_v or (need_h and rh > H - sh)
+        if (need_v, need_h) != self._bars:
+            self._bars = (need_v, need_h)
+            self.vsb.grid() if need_v else self.vsb.grid_remove()
+            self.hsb.grid() if need_h else self.hsb.grid_remove()
+        w, h = max(rw, W - (sw if need_v else 0)), max(rh, H - (sh if need_h else 0))
+        self.canvas.itemconfigure(self._item, width=w, height=h)
+        self.canvas.configure(scrollregion=(0, 0, w, h))
+
+    def scroll(self, steps: int, horizontal: bool = False) -> bool:
+        """Scroll by mouse wheel steps; False when that direction has nothing to scroll."""
+        if horizontal and self._bars[1]:
+            self.canvas.xview_scroll(steps, "units")
+        elif not horizontal and self._bars[0]:
+            self.canvas.yview_scroll(steps, "units")
+        else:
+            return False
+        return True
+
+
+class ResizeGrip(tk.Canvas):
+    """A handle under a text box or a table: drag it to give the box more or fewer rows, and what is below moves
+    with it (the page scrolls when it outgrows the window). The row count is remembered in the settings under key;
+    a double click restores the built-in height."""
+
+    def __init__(self, master, app, box, key: str, min_rows: int = 2):
+        super().__init__(master, width=px(40), height=px(10), highlightthickness=0, borderwidth=0,
+                         cursor="sb_v_double_arrow")
+        self.app, self.box, self.key, self.min_rows = app, box, key, min_rows
+        self.default = int(box.cget("height"))
+        rows = app.settings.get("box_rows", {}).get(key)
+        if isinstance(rows, int) and rows >= min_rows:
+            box.configure(height=rows)
+        self._fg = app.C["fg_muted"]
+        self._drag_from = None
+        self.bind("<Configure>", lambda _e: self._draw())
+        self.bind("<ButtonPress-1>", self._press)
+        self.bind("<B1-Motion>", self._drag)
+        self.bind("<ButtonRelease-1>", self._release)
+        self.bind("<Double-Button-1>", self._reset)
+        app.themed.append(self)
+        self.apply_theme(app.C)
+
+    def apply_theme(self, C: dict):
+        self.configure(bg=C["bg"])
+        self._fg = C["fg_muted"]
+        self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        w, h = self.winfo_width(), self.winfo_height()
+        half, gap = px(18), max(1, px(2))
+        for y in (h // 2 - gap, h // 2 + gap):
+            self.create_line(w // 2 - half, y, w // 2 + half, y, fill=self._fg, width=max(1, px(1)))
+
+    def _row_px(self) -> int:
+        """The height of one row of the box: the Treeview row height, or the line height of the text's font."""
+        try:
+            if self.box.winfo_class() == "Treeview":
+                return max(1, int(self.app.style.lookup("Treeview", "rowheight")))
+            return max(1, int(self.tk.call("font", "metrics", self.box.cget("font"), "-linespace")))
+        except (tk.TclError, ValueError):
+            return max(1, px(20))
+
+    def _press(self, e):
+        self._drag_from = (e.y_root, int(self.box.cget("height")), self._row_px())
+
+    def _drag(self, e):
+        if self._drag_from is None:
+            return
+        y0, rows0, step = self._drag_from
+        rows = max(self.min_rows, rows0 + int(round((e.y_root - y0) / step)))
+        if rows != int(self.box.cget("height")):
+            self.box.configure(height=rows)
+            self.app.page.refresh()
+
+    def _release(self, _e):
+        if self._drag_from is None:
+            return
+        self._drag_from = None
+        self.app.settings.setdefault("box_rows", {})[self.key] = int(self.box.cget("height"))
+        save_settings(self.app.settings)
+
+    def _reset(self, _e=None):
+        self._drag_from = None
+        self.box.configure(height=self.default)
+        self.app.settings.get("box_rows", {}).pop(self.key, None)
+        save_settings(self.app.settings)
+        self.app.page.refresh()
 
 
 class FileSlot(ttk.Frame):
@@ -1085,14 +1234,17 @@ class MergeApp(tk.Tk):
             theme = self.settings.get("theme", "light")
         self.theme_name = theme if theme in THEMES else "light"
         self.C = THEMES[self.theme_name]
-        self._setup_scaling_and_fonts()
+        self._unscaled: dict = {}                   # (widget, option) -> (size at 100 %, size last set), see rescale()
+        target = self._setup_scaling_and_fonts()
         self.style = ttk.Style(self)
         self._native_theme = next((n for n in ("vista", "winnative", "clam") if n in self.style.theme_names()), "default")
         self._build()
         self.apply_theme(self.theme_name)
-        self.update_idletasks()
-        w, h = self.winfo_reqwidth(), self.winfo_reqheight()
-        self.minsize(min(w, self.winfo_screenwidth() - 80), min(h, self.winfo_screenheight() - 120))
+        self.rescale(target)                        # a scale below 100 %: built at 100 % so every size is known exactly
+        self._fit_tab()
+        self.nb.bind("<<NotebookTabChanged>>", lambda _e: self._fit_tab(), add="+")
+        self.minsize(px(400), px(300))              # smaller than the layout is fine: the page scrolls
+        self._fit_window(place=True)
         self.after(80, self._poll)
 
     def _setup_scaling_and_fonts(self):
@@ -1102,7 +1254,8 @@ class MergeApp(tk.Tk):
         self.scale_setting = self.scale_setting if self.scale_setting in SCALES else self.settings.get("scale", "auto")
         if self.scale_setting not in SCALES:
             self.scale_setting = "auto"
-        _S = self.ui_scale = ui_scale_factor(self.scale_setting)
+        target = ui_scale_factor(self.scale_setting)
+        _S = self.ui_scale = max(1.0, target)
         PAD.update(padx=px(6), pady=px(3))
         try:
             self._dpi = float(self.winfo_fpixels("1i"))
@@ -1119,6 +1272,7 @@ class MergeApp(tk.Tk):
             tkfont.nametofont("TkFixedFont").configure(family="Consolas" if sys.platform == "win32" else "Courier", size=self.font_px(10))
         except tk.TclError:
             pass
+        return target
 
     def font_px(self, points: float) -> int:
         """A Tk font size in pixels (negative by Tk convention) for a point size at the current DPI and UI scale."""
@@ -1146,25 +1300,48 @@ class MergeApp(tk.Tk):
             except tk.TclError:
                 pass
 
-        def re(v):
-            # a padding built as px(n) under the old scale: recover n (exact for scales >= 1), rescale it
+        def norm(v):
             if isinstance(v, (tuple, list)):
-                return tuple(re(x) for x in v)
+                return tuple(norm(x) for x in v)
             try:
-                n = int(round(int(v) / old))
+                return int(v)
             except (TypeError, ValueError):
                 return v
-            return int(round(n * factor))
+
+        def unscale(v):
+            if isinstance(v, tuple):
+                return tuple(unscale(x) for x in v)
+            return int(round(v / old)) if isinstance(v, int) else v      # px() takes whole pixels at 100 %
+
+        def up(b):
+            if isinstance(b, tuple):
+                return tuple(up(x) for x in b)
+            if not isinstance(b, int):
+                return b
+            n = int(round(b * factor))
+            return max(n, 1) if b > 0 else n
+
+        def re(w, opt, v):
+            # A size built as px(n): its 100 % value n is remembered from the last rescale while the widget still has
+            # the size set then, so going through small scales loses nothing; otherwise it is recovered from the old
+            # scale (exact when that was 100 % or more, which is why the window is built at 100 % at least).
+            v = norm(v)
+            key = (str(w), opt)
+            kept = self._unscaled.get(key)
+            base = kept[0] if kept is not None and kept[1] == v else unscale(v)
+            new = up(base)
+            self._unscaled[key] = (base, new)
+            return new
 
         def walk(w):
             try:
                 mgr = w.winfo_manager()
                 if mgr == "pack":
                     info = w.pack_info()
-                    w.pack_configure(padx=re(info.get("padx", 0)), pady=re(info.get("pady", 0)))
+                    w.pack_configure(padx=re(w, "pack-x", info.get("padx", 0)), pady=re(w, "pack-y", info.get("pady", 0)))
                 elif mgr == "grid":
                     info = w.grid_info()
-                    w.grid_configure(padx=re(info.get("padx", 0)), pady=re(info.get("pady", 0)))
+                    w.grid_configure(padx=re(w, "grid-x", info.get("padx", 0)), pady=re(w, "grid-y", info.get("pady", 0)))
             except tk.TclError:
                 pass
             for opt in ("padding", "wraplength"):
@@ -1174,12 +1351,12 @@ class MergeApp(tk.Tk):
                     continue
                 if v not in ("", 0, (), None):
                     try:
-                        w.configure({opt: re(v)})
+                        w.configure({opt: re(w, opt, v)})
                     except tk.TclError:
                         pass
-            if isinstance(w, tk.Canvas):
+            if isinstance(w, tk.Canvas) and not getattr(w, "no_rescale", False):
                 try:
-                    w.configure(width=re(w.cget("width")), height=re(w.cget("height")))
+                    w.configure(width=re(w, "width", w.cget("width")), height=re(w, "height", w.cget("height")))
                 except tk.TclError:
                     pass
             if isinstance(w, ttk.Entry):        # Combobox and Spinbox too: re-setting the font recomputes the text layout
@@ -1191,9 +1368,83 @@ class MergeApp(tk.Tk):
                 walk(ch)
         walk(self)
         self.apply_theme(self.theme_name)
+        self.page.refresh()
+        self.minsize(px(400), px(300))
+
+    def _fit_tab(self):
+        """The notebook asks for the height of the selected tab only, not of the tallest one, so on a short tab the
+        log follows right below the controls instead of below empty space."""
+        cur = self.nb.select()
+        for t in self.nb.tabs():
+            w = self.nametowidget(t)
+            on = t == cur
+            w.pack_propagate(on)
+            w.grid_propagate(on)
+            if not on:
+                w.configure(width=1, height=1)
+        self.page.refresh()
+
+    def _natural_size(self) -> tuple[int, int]:
+        """The size the page needs to show the tallest tab without scrolling."""
+        for t in self.nb.tabs():
+            w = self.nametowidget(t)
+            w.pack_propagate(True)
+            w.grid_propagate(True)
         self.update_idletasks()
-        w, h = self.winfo_reqwidth(), self.winfo_reqheight()
-        self.minsize(min(w, self.winfo_screenwidth() - 80), min(h, self.winfo_screenheight() - 120))
+        size = self.page.body.winfo_reqwidth(), self.page.body.winfo_reqheight()
+        self._fit_tab()
+        return size
+    def _work_area(self) -> tuple[int, int, int, int]:
+        """The desktop without the task bar, in pixels: left, top, width, height."""
+        if sys.platform == "win32":
+            try:
+                from ctypes import wintypes
+                r = wintypes.RECT()
+                if ctypes.windll.user32.SystemParametersInfoW(0x0030, 0, ctypes.byref(r), 0):   # SPI_GETWORKAREA
+                    return r.left, r.top, r.right - r.left, r.bottom - r.top
+            except Exception:  # noqa: BLE001
+                pass
+        return 0, 0, self.winfo_screenwidth(), self.winfo_screenheight()
+
+    def _frame_px(self) -> tuple[int, int]:
+        """About how much width and height the window frame and the title bar add, in pixels."""
+        k = self._dpi / 96.0
+        return int(round(16 * k)), int(round(40 * k))
+
+    def _fit_window(self, place: bool = False):
+        """Size the window to show every tab without scrolling, as far as the work area allows; a larger layout
+        scrolls. A maximized window stays as it is. place: also centre it in the work area (a new window)."""
+        try:
+            if self.state() == "zoomed":
+                return
+        except tk.TclError:
+            pass
+        left, top, aw, ah = self._work_area()
+        fw, fh = self._frame_px()
+        nw, nh = self._natural_size()
+        w, h = max(1, min(nw, aw - fw)), max(1, min(nh, ah - fh))
+        pos = f"+{left + max(0, (aw - w - fw) // 2)}+{top + max(0, (ah - h - fh) // 2)}" if place else ""
+        self.geometry(f"{w}x{h}{pos}")
+        self.page.refresh()
+
+    def _wheel(self, e, horizontal: bool = False):
+        """The mouse wheel scrolls the page, except over a box that scrolls itself and has something to scroll."""
+        w = e.widget
+        if isinstance(w, str):                      # Tk internals, such as a combobox drop down list
+            return
+        try:
+            if w.winfo_toplevel() is not self:
+                return
+            if w.winfo_class() in ("Text", "Listbox", "Treeview"):
+                if tuple(w.xview() if horizontal else w.yview()) != (0.0, 1.0):
+                    return
+        except (tk.TclError, AttributeError):
+            return
+        if getattr(e, "num", None) in (4, 5):       # X11 wheel buttons
+            steps = -1 if e.num == 4 else 1
+        else:
+            steps = -int(e.delta / 120) or (-1 if e.delta > 0 else 1)
+        self.page.scroll(steps, horizontal)
 
     # ---- theme
     def apply_theme(self, name: str):
@@ -1260,6 +1511,7 @@ class MergeApp(tk.Tk):
             self.option_add("*TCombobox*Listbox.background", C["surface_2"])
             self.option_add("*TCombobox*Listbox.foreground", C["fg"])
             self.option_add("*TCombobox*Listbox.selectBackground", C["accent"])
+        self.page.canvas.configure(bg=C["bg"])
         self.txt.configure(bg=C["log_bg"], fg=C["fg"], insertbackground=C["fg"])
         self._recolor_popdowns(C)
         for w in list(self.themed):
@@ -1313,6 +1565,7 @@ class MergeApp(tk.Tk):
         self.settings["scale"] = self.scale_setting
         save_settings(self.settings)
         self.rescale(ui_scale_factor(self.scale_setting))
+        self._fit_window()
 
     @staticmethod
     def _device_text() -> str:
@@ -1325,7 +1578,18 @@ class MergeApp(tk.Tk):
             return ""
 
     def _build(self):
-        self.header = ttk.Frame(self, padding=(px(10), px(8), px(10), 0))
+        self.page = ScrollPage(self)
+        self.page.pack(fill="both", expand=True)
+        page = self.page.body
+        # the wheel scrolls the page; over a combobox it would otherwise silently change the value
+        for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+            self.bind_class("TCombobox", seq, "")
+        self.bind_all("<MouseWheel>", self._wheel)
+        self.bind_all("<Shift-MouseWheel>", lambda e: self._wheel(e, horizontal=True))
+        if self._windowingsystem == "x11":
+            self.bind_all("<Button-4>", self._wheel)
+            self.bind_all("<Button-5>", self._wheel)
+        self.header = ttk.Frame(page, padding=(px(10), px(8), px(10), 0))
         self.header.pack(fill="x")
         self.title_lbl = ttk.Label(self.header, text="Krea 2 Merge Tool")
         self.title_lbl.pack(side="left")
@@ -1333,12 +1597,12 @@ class MergeApp(tk.Tk):
         self.btn_theme.pack(side="right")
         self.scale_var = tk.StringVar(value=self._scale_label(self.scale_setting))
         self.cb_scale = ttk.Combobox(self.header, textvariable=self.scale_var, state="readonly", width=13,
-                                     values=[self._scale_label(v) for v in SCALES])
+                                     values=[self._scale_label(v) for v in SCALES], height=len(SCALES))
         self.cb_scale.pack(side="right", padx=(0, px(8)))
         self.cb_scale.bind("<<ComboboxSelected>>", self._scale_chosen)
         ttk.Label(self.header, text="Scale", style="Hint.TLabel").pack(side="right", padx=(0, px(4)))
         ttk.Label(self.header, text=self._device_text(), style="Hint.TLabel").pack(side="right", padx=px(12))
-        self.nb = ttk.Notebook(self)
+        self.nb = ttk.Notebook(page)
         self.nb.pack(fill="both", expand=True, padx=px(10), pady=(px(8), px(4)))
         self.tab_lora = LoraMergeTab(self.nb, self)
         self.tab_prune = PruneTab(self.nb, self)
@@ -1356,7 +1620,7 @@ class MergeApp(tk.Tk):
         self.nb.add(self.tab_spectrum, text="Spectrum")
         self.nb.add(self.tab_meta, text="Metadata")
 
-        bottom = ttk.Frame(self, padding=(px(10), px(4), px(10), px(10)))
+        bottom = ttk.Frame(page, padding=(px(10), px(4), px(10), px(10)))
         bottom.pack(fill="both")
         row = ttk.Frame(bottom)
         row.pack(fill="x")
@@ -1376,6 +1640,7 @@ class MergeApp(tk.Tk):
         self.txt.configure(yscrollcommand=sb.set)
         self.txt.pack(side="left", fill="both", expand=True)
         sb.pack(side="left", fill="y")
+        ResizeGrip(bottom, self, self.txt, "log", min_rows=3).pack(fill="x")
 
     # ---- helpers
     def use_gpu(self) -> bool:
