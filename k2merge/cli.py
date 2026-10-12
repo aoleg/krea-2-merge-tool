@@ -38,6 +38,20 @@ def _shaping_arg(text: str | None) -> Shaping:
     return s
 
 
+def _prefix_weights(items: list[str], ap) -> dict[str, float]:
+    """["txtfusion.=0", "txtmlp.=0.5"] -> {"txtfusion.": 0.0, "txtmlp.": 0.5}."""
+    out = {}
+    for it in items:
+        prefix, sep, val = it.rpartition("=")
+        try:
+            if not sep or not prefix:
+                raise ValueError
+            out[prefix] = float(val.replace(",", "."))
+        except ValueError:
+            ap.error(f"--prefix-weight wants PREFIX=FACTOR, got {it!r}")
+    return out
+
+
 def _lora_arg(text: str):
     """FILE[:STRENGTH[:SHAPING]] where SHAPING is PRESET:MODIFIER:CONTRAST[:BOOST][@NONBLOCK]."""
     from .lora_merge import LoraInput
@@ -165,6 +179,9 @@ def build_parser() -> argparse.ArgumentParser:
     cm.add_argument("--int8-clip", default="mse", choices=INT8_CLIPS)
     cm.add_argument("--vectors-from", default="merge", choices=VECTOR_SOURCES,
                     help="norm scales, modulation vectors and biases: merged like the rest (merge), or copied from A, B or C")
+    cm.add_argument("--prefix-weight", action="append", default=[], metavar="PREFIX=FACTOR",
+                    help="expert: factor on B's weight for modules whose name starts with PREFIX "
+                         "(e.g. txtfusion.=0), replacing the block or non block factor; repeatable")
     cm.add_argument("--as-lora", type=int, default=None, metavar="RANK", help="write the result as a LoRA of this rank")
     cm.add_argument("--report", action="store_true", help="print the pre merge report and exit")
     cm.add_argument("--plan", action="store_true")
@@ -436,6 +453,10 @@ def main(argv=None) -> int:
                 parts = args.B.split("|")
                 B = CkptInput(parts[0], float(parts[1]) if len(parts) > 1 and parts[1] else 1.0,
                               _shaping_arg(parts[2]) if len(parts) > 2 else Shaping())
+            if args.prefix_weight:
+                if B is None:
+                    ap.error("--prefix-weight needs -B")
+                B.shaping.prefix_factors = _prefix_weights(args.prefix_weight, ap)
             C = CkptInput(args.C) if args.C else None
             loras = [_lora_arg(t) for t in args.lora]
             if len(loras) > 4:

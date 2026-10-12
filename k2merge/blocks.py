@@ -96,6 +96,9 @@ class Shaping:
     boost: float = 1.0
     custom: list[float] | None = None          # explicit per block factors (calibration)
     non_block: float | None = None             # factor for keys outside the mask; None = 1.0
+    # factors for module name prefixes ("txtfusion." -> 0.0), replacing the block or
+    # non block factor; the longest matching prefix wins. Recipe and CLI only, no GUI.
+    prefix_factors: dict[str, float] | None = None
 
     def factors(self, count: int) -> list[float]:
         if self.custom is not None:
@@ -104,14 +107,36 @@ class Shaping:
             return [float(x) for x in self.custom]
         return build_block_mask(count, self.preset, self.modifier, self.contrast, self.boost)
 
-    def factor_for(self, block: int | None, count: int) -> float:
+    def prefix_factor(self, module: str | None) -> float | None:
+        if not self.prefix_factors or not module:
+            return None
+        from .keys import diffusers_to_comfy
+        m = diffusers_to_comfy(module)
+        # dotted names, and kohya names that flatten the dots to underscores
+        hits = [p for p in self.prefix_factors if m.startswith(p) or m.startswith(p.replace(".", "_"))]
+        return float(self.prefix_factors[max(hits, key=len)]) if hits else None
+
+    def factor_for(self, block: int | None, count: int, module: str | None = None) -> float:
+        pf = self.prefix_factor(module)
+        if pf is not None:
+            return pf
         if block is None:
             return 1.0 if self.non_block is None else float(self.non_block)
         return self.factors(count)[block]
 
     def is_flat(self) -> bool:
         return self.custom is None and (self.preset == "FULL" or self.contrast <= 0.0) \
-            and (self.non_block is None or self.non_block == 1.0)
+            and (self.non_block is None or self.non_block == 1.0) \
+            and all(float(v) == 1.0 for v in (self.prefix_factors or {}).values())
+
+    def hidden(self) -> dict:
+        """The settings the GUI has no widget for (custom mask, prefix factors)."""
+        d = {}
+        if self.custom is not None:
+            d["custom"] = list(self.custom)
+        if self.prefix_factors:
+            d["prefix_factors"] = dict(self.prefix_factors)
+        return d
 
     def to_dict(self) -> dict:
         d = {"preset": self.preset, "modifier": self.modifier,
@@ -120,15 +145,19 @@ class Shaping:
             d["custom"] = list(self.custom)
         if self.non_block is not None:
             d["non_block"] = self.non_block
+        if self.prefix_factors:
+            d["prefix_factors"] = dict(self.prefix_factors)
         return d
 
     @classmethod
     def from_dict(cls, d: dict | None) -> "Shaping":
         if not d:
             return cls()
+        pf = d.get("prefix_factors")
         return cls(preset=d.get("preset", "FULL"), modifier=d.get("modifier", "Suppress"),
                    contrast=float(d.get("contrast", 0.5)), boost=float(d.get("boost", 1.0)),
-                   custom=d.get("custom"), non_block=d.get("non_block"))
+                   custom=d.get("custom"), non_block=d.get("non_block"),
+                   prefix_factors={str(k): float(v) for k, v in pf.items()} if pf else None)
 
 
 # One click recipes from Neo-LoraCtl's calibration rounds.

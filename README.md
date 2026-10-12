@@ -180,6 +180,10 @@ run.bat ckpt-merge -A finetune_raw.safetensors -B "krea2_raw_bf16.safetensors|0"
 ```
 
 ```bash
+run.bat ckpt-merge -A finetune_turbo.safetensors -B "krea2_raw_bf16.safetensors|1" -C krea2_turbo_bf16.safetensors -o finetune_raw.safetensors --format keep --prefix-weight txtfusion.=0 --prefix-weight txtmlp.=0
+```
+
+```bash
 run.bat extract krea2_raw_bf16.safetensors finetune.safetensors -o unused.safetensors --analyze --spectrum finetune_vs_raw --energy 0.95
 ```
 
@@ -196,6 +200,8 @@ run.bat meta redact S:\models\krea-2
 ```
 
 LoRA and checkpoint arguments take the form `FILE|WEIGHT|SHAPING`, where SHAPING is `PRESET:MODIFIER:CONTRAST[:BOOST][@NONBLOCK]`.
+
+`--prefix-weight PREFIX=FACTOR` (checkpoint merge, repeatable) sets the factor on the second checkpoint's weight for every module whose name starts with PREFIX, in place of the block or non block factor; the longest matching prefix wins. It separates the parts of the non block zone, for example a de-Turbo of a fine tune whose `txtfusion.` and `txtmlp.` were copied from a Raw-side model and carry no Turbo delta. Recipes store it as `prefix_factors` in the shaping of B. The GUI has no control for it: a loaded recipe keeps it, and the preset hint names it.
 
 ## Layout
 

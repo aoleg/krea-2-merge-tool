@@ -37,7 +37,7 @@ class LoraSource:
         """strength times the block factor of module c."""
         name = self.module_names.get(c, self.file.modules[c].name)
         b = block_index_any(name)
-        return self.strength * self.shaping.factor_for(b, self.block_count)
+        return self.strength * self.shaping.factor_for(b, self.block_count, name)
 
     def is_exact(self, c: str) -> bool:
         return self.file.modules[c].kind == "lora"
@@ -76,8 +76,8 @@ class CheckpointDelta:
 
     def factor(self, c: str) -> float:
         tk = self._mods[c][0]
-        b = block_index_any(ckpt_module(tk)[0])
-        return self.weight * self.shaping.factor_for(b, self.block_count)
+        name = ckpt_module(tk)[0]
+        return self.weight * self.shaping.factor_for(block_index_any(name), self.block_count, name)
 
     def low_rank(self, c: str, device=None):
         return None

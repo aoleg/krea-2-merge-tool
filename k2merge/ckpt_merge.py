@@ -99,7 +99,7 @@ class _Ckpt:
 
 
 def _block_factor(shaping: Shaping, module: str, count: int) -> float:
-    return shaping.factor_for(block_index_any(module), count)
+    return shaping.factor_for(block_index_any(module), count, module)
 
 
 @dataclass

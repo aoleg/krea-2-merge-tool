@@ -472,6 +472,9 @@ class ShapingRow(ttk.LabelFrame):
         self.detail.columnconfigure(1, weight=1)
         self.detail.columnconfigure(2, weight=1)
         self.columnconfigure(1, weight=1)
+        # recipe settings without a widget (custom mask, prefix factors): kept so a
+        # loaded recipe saves back unchanged, named in the preset hint
+        self._hidden: dict = {}
         self.preset.trace_add("write", lambda *_: self._changed())
         self.modifier.trace_add("write", lambda *_: self._changed())
         self._changed()
@@ -481,7 +484,16 @@ class ShapingRow(ttk.LabelFrame):
         flat = self.preset.get() == "FULL"
         hints = {"FULL": "no shaping: every block at full strength", "COMPOSITION": "blocks 0-8: layout, poses, geometry",
                  "CHARACTER": "blocks 9-18: identity, faces", "STYLE": "blocks 19-27: textures, grain, rendering style"}
-        self.preset_hint.configure(text=hints.get(self.preset.get(), ""))
+        hidden = getattr(self, "_hidden", {})
+        extra = ""
+        if hidden:
+            parts = []
+            if "custom" in hidden:
+                parts.append("custom block mask")
+            if "prefix_factors" in hidden:
+                parts.append(", ".join(f"{p}={v:g}" for p, v in hidden["prefix_factors"].items()))
+            extra = "  [from recipe: " + "; ".join(parts) + "]"
+        self.preset_hint.configure(text=hints.get(self.preset.get(), "") + extra)
         if flat:
             self.detail.grid_forget()
             self.cb_mod.configure(state="disabled")
@@ -501,6 +513,7 @@ class ShapingRow(ttk.LabelFrame):
 
     def apply_recipe(self, key: str | None):
         s = RECIPES[key] if key else Shaping()
+        self._hidden = {}
         self.modifier.set(s.modifier)
         self.contrast.set(s.contrast)
         self.boost.set(s.boost)
@@ -517,6 +530,9 @@ class ShapingRow(ttk.LabelFrame):
                 s.non_block = (nb / w) if abs(w) > 1e-9 else 1.0   # stored as a factor on the weight
             except ValueError:
                 pass
+        if self._hidden:
+            s.custom = self._hidden.get("custom")
+            s.prefix_factors = self._hidden.get("prefix_factors")
         return s
 
     def draw_curve(self):
@@ -554,6 +570,7 @@ class ShapingRow(ttk.LabelFrame):
         self.slot.set(path)
         self.slider.set(value)
         s = shaping or Shaping()
+        self._hidden = s.hidden()
         self.modifier.set(s.modifier)
         self.contrast.set(s.contrast)
         self.boost.set(s.boost)
