@@ -31,7 +31,7 @@ def _device_line() -> str:
 
 def plan_lora_merge(inputs: list[LoraInput], opts: LoraMergeOptions) -> str:
     lines = [_device_line()]
-    sources = open_sources(inputs, opts.average, opts.block_count)
+    sources = open_sources(inputs, opts.average, opts.block_count, opts.checkpoint)
     try:
         for s in sources:
             lines.append(f"input {s.label}: {s.file.summary()}; effective strength {s.strength:g}"
@@ -54,7 +54,7 @@ def plan_lora_merge(inputs: list[LoraInput], opts: LoraMergeOptions) -> str:
         lines.append(f"output: {n} modules, {opts.naming} naming, {opts.dtype}")
         unknown = [names[c] for c in chosen if "." not in names[c] and "_" in names[c]]
         if unknown:
-            lines.append(f"warning: {len(unknown)} kohya module names could not be mapped to Krea 2 names (e.g. {unknown[:2]})")
+            lines.append(f"warning: {len(unknown)} kohya module names could not be mapped to dotted module names (e.g. {unknown[:2]})")
     finally:
         for s in sources:
             s.file.close()

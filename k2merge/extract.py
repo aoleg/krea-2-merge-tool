@@ -18,14 +18,13 @@ from . import TOOL_NAME, __version__
 from .analysis import FORMAT_NOISE, MANTISSA_BITS, AnalysisReport, OtherTensor, analyze_sources
 from .engine import Cancelled, pick_device, recipe_for_metadata
 from .formats import FileFormat
-from .keys import KREA2_BLOCKS, canon, ckpt_module, group_of, in_int8_recipe
+from .keys import KREA2, canon, ckpt_module, detect_family, group_of, resolve_block_count
 from .lora_merge import DTYPE_TAG, DTYPE_TORCH, output_keys
 from .meta import redact_paths
 from .sources import CheckpointDelta
 from .st_io import StreamWriter, TensorReader, same_file
 
 FILTER_PRESETS = ("all", "attn", "blocks", "custom")
-_RE_ATTN = re.compile(r"^blocks\.\d+\.attn\.")
 
 
 @dataclass
@@ -43,7 +42,7 @@ class ExtractOptions:
     write_alpha: bool = True
     keep_metadata: bool = False
     redact_inherited: bool = True     # strip paths out of the metadata inherited from the target
-    block_count: int = KREA2_BLOCKS
+    block_count: int | None = None    # None: from the target checkpoint
 
     def to_dict(self):
         return dict(self.__dict__)
@@ -57,11 +56,13 @@ class ExtractOptions:
         return o
 
 
-def module_selected(module: str, opts: ExtractOptions) -> bool:
+def module_selected(module: str, opts: ExtractOptions, profile=None) -> bool:
+    """profile: the architecture of the checkpoints (Krea 2 when unknown)."""
+    p = profile or KREA2
     if opts.filter == "attn":
-        return bool(_RE_ATTN.match(module))
+        return bool(p.attn_leaf_re.match(module))
     if opts.filter == "blocks":
-        return in_int8_recipe(module)
+        return p.in_int8(module)
     if opts.filter == "custom":
         if opts.exclude and re.search(opts.exclude, module):
             if not (opts.include and re.search(opts.include, module)):
@@ -91,6 +92,7 @@ def _open(base_path, target_path):
 def _selected_modules(fb: FileFormat, ft: FileFormat, opts: ExtractOptions):
     """[(canon, bare module, target key, base key, shape)] for common 2-D weights passing the filter."""
     base_mods = {canon(ckpt_module(k)[0]): k for k in fb.reader.infos if k.endswith(".weight")}
+    profile = detect_family(ft.reader.infos) or detect_family(fb.reader.infos)
     out, skipped = [], []
     for k in ft.reader.names:
         if not k.endswith(".weight"):
@@ -106,7 +108,7 @@ def _selected_modules(fb: FileFormat, ft: FileFormat, opts: ExtractOptions):
         if list(fb.reader.shape(base_mods[c])) != list(shape):
             skipped.append((module, f"shape {fb.reader.shape(base_mods[c])} vs {shape}"))
             continue
-        if not module_selected(module, opts):
+        if not module_selected(module, opts, profile):
             continue
         out.append((c, module, k, base_mods[c], shape))
     return out, skipped
@@ -182,7 +184,8 @@ def analyze_extract(base_path: str, target_path: str, opts: ExtractOptions, use_
     rb, rt, fb, ft = _open(base_path, target_path)
     try:
         mods, skipped = _selected_modules(fb, ft, opts)
-        src = CheckpointDelta(ft, fb, weight=1.0, block_count=opts.block_count)
+        prof = detect_family(ft.reader.infos) or KREA2
+        src = CheckpointDelta(ft, fb, weight=1.0, block_count=resolve_block_count(opts.block_count, prof, ft.reader.infos))
         names = {c: module for c, module, *_ in mods}
         rep = analyze_sources([src], [m[0] for m in mods], names, device, requested_rank=opts.rank,
                               progress=progress, cancel=cancel, null_spectrum=null_spectrum)

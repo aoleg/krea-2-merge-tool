@@ -1,0 +1,84 @@
+== phase 14 real runs, 2026-10-19 17:54, torch 2.13.0+cu132, NVIDIA GeForce RTX 5090
+inputs: temp/checkpoint/moss_image_{base,sft}_bf16, temp/lora/{moss_realism_v1, moss_image_sft_4step_v2.0, lora_latest}
+
+== inspect
+$ krea2_merge_tool.py inspect temp/checkpoint/moss_image_base_bf16.safetensors temp/checkpoint/moss_image_sft_bf16.safetensors temp/lora/moss_realism_v1.safetensors temp/lora/moss_image_sft_4step_v2.0.safetensors temp/lora/lora_latest.safetensors
+   moss_image_base_bf16.safetensors  (9.5 GB, 379 tensors)
+   checkpoint: plain BF16:378/F32:1
+   dtypes: {'F32': 1, 'BF16': 378}
+   key prefix: (none); architecture: MOSS-Image; blocks: 42
+   
+   moss_image_sft_bf16.safetensors  (9.5 GB, 379 tensors)
+   checkpoint: plain BF16:378/F32:1
+   dtypes: {'F32': 1, 'BF16': 378}
+   key prefix: (none); architecture: MOSS-Image; blocks: 42
+   
+   moss_realism_v1.safetensors  (123.0 MB, 328 tensors)
+   LoRA (diffusers, 164 modules {'lora': 164}, rank [32], applied scale [1.0])
+   MOSS-Image LoRA; blocks targeted: 0-41 (41 of 42 blocks)
+   metadata: 9 keys, e.g. ['sshs_legacy_hash', 'name', 'format', 'version']
+   
+   moss_image_sft_4step_v2.0.safetensors  (1.1 GB, 756 tensors)
+   LoRA (comfy, 168 modules {'lora': 168}, rank [128, 384], applied scale [1.0], q/k/v folded into qkv in 42 layers)
+   MOSS-Image LoRA; blocks targeted: 0-41 (42 of 42 blocks)
+   
+   lora_latest.safetensors  (1.1 GB, 756 tensors)
+   LoRA (comfy, 168 modules {'lora': 168}, rank [128, 384], applied scale [1.0], q/k/v folded into qkv in 42 layers)
+   MOSS-Image LoRA; blocks targeted: 0-41 (42 of 42 blocks)
+   metadata: 2 keys, e.g. ['rank', 'alpha']
+   
+   exit 0, 2s
+
+== resolution of each LoRA against moss_image_sft_bf16
+moss_realism_v1.safetensors: diffusers, 164 modules {'lora': 164}, rank [32], applied scale [1.0]
+   matched 164, unmatched 0, shape mismatch 0
+moss_image_sft_4step_v2.0.safetensors: comfy, 168 modules {'lora': 168}, rank [128, 384], applied scale [1.0], q/k/v folded into qkv in 42 layers
+   matched 168, unmatched 0, shape mismatch 0
+   fold vs per part slicing, layers 0/21/41: max relative difference 0.00e+00
+lora_latest.safetensors: comfy, 168 modules {'lora': 168}, rank [128, 384], applied scale [1.0], q/k/v folded into qkv in 42 layers
+   matched 168, unmatched 0, shape mismatch 0
+   fold vs per part slicing, layers 0/21/41: max relative difference 0.00e+00
+
+== bake moss_realism_v1 into moss_image_sft_bf16 -> bf16
+$ krea2_merge_tool.py ckpt-merge -A temp/checkpoint/moss_image_sft_bf16.safetensors --lora temp/lora/moss_realism_v1.safetensors|1.0 -o temp/out/moss_sft_realism_v1_bf16.safetensors --format bf16
+   
+   wrote temp/out/moss_sft_realism_v1_bf16.safetensors (379 tensors, 23.2s); verify ok
+   exit 0, 25s
+== bake moss_realism_v1 into moss_image_sft_bf16 -> int8_convrot (int8 clip auto = absmax)
+$ krea2_merge_tool.py ckpt-merge -A temp/checkpoint/moss_image_sft_bf16.safetensors --lora temp/lora/moss_realism_v1.safetensors|1.0 -o temp/out/moss_sft_realism_v1_int8_convrot.safetensors --format int8_convrot
+   
+   wrote temp/out/moss_sft_realism_v1_int8_convrot.safetensors (757 tensors, 15.5s); verify ok
+   exit 0, 18s
+== bake moss_image_sft_4step_v2.0 (split q/k/v, folded) into moss_image_sft_bf16 -> bf16
+$ krea2_merge_tool.py ckpt-merge -A temp/checkpoint/moss_image_sft_bf16.safetensors --lora temp/lora/moss_image_sft_4step_v2.0.safetensors|1.0 -o temp/out/moss_sft_4step_v2.0_bf16.safetensors --format bf16
+   
+   wrote temp/out/moss_sft_4step_v2.0_bf16.safetensors (379 tensors, 19.0s); verify ok
+   exit 0, 21s
+
+== structure against the official headers (shapes included)
+moss_sft_realism_v1_bf16.safetensors vs official sft bf16: identical
+moss_sft_realism_v1_int8_convrot.safetensors vs official sft int8_convrot: identical
+   comfy_attention.config tensors: 42, bytes {b'{"attention": "comfy_kitchen_int8"}'}
+moss_sft_4step_v2.0_bf16.safetensors vs official sft bf16: identical
+
+== the bake changes exactly the LoRA's modules (realism, bf16 output vs input)
+   164 tensors changed, 164 LoRA modules, unexpected: none
+   layers.22.proj.qkv.weight: unchanged (layer 22 is not in the LoRA)
+   layers.10.proj.ffn_up_gate.weight: |out - (W + BA)| / |BA| = 6.957e-01 (bf16 rounding)
+
+== int8 quantizer against the official sft int8 file (tensors fetched by range request)
+   layers.0.proj.o              absmax: identical int8 elements 100.00%, scale max rel diff 0.00e+00
+   layers.0.proj.o              mse   : identical int8 elements  66.19%, scale max rel diff 3.99e-02
+   layers.0.proj.qkv            absmax: identical int8 elements 100.00%, scale max rel diff 0.00e+00
+   layers.0.proj.qkv            mse   : identical int8 elements  63.07%, scale max rel diff 3.99e-02
+   layers.20.proj.ffn_up_gate   absmax: identical int8 elements 100.00%, scale max rel diff 0.00e+00
+   layers.20.proj.ffn_up_gate   mse   : identical int8 elements  63.07%, scale max rel diff 4.56e-02
+   layers.41.proj.ffn_down      absmax: identical int8 elements 100.00%, scale max rel diff 0.00e+00
+   layers.41.proj.ffn_down      mse   : identical int8 elements  35.90%, scale max rel diff 6.84e-02
+
+outputs in temp/out (not part of the repository): moss_sft_4step_v2.0_bf16.safetensors, moss_sft_realism_v1_bf16.safetensors, moss_sft_realism_v1_int8_convrot.safetensors
+
+== how much of the LoRA delta a bf16 output keeps (applied delta = out - W against the LoRA's B A, fp32)
+moss_realism_v1: 164 modules, |BA| / |W| median 1.77e-03; cosine(applied, BA) min 0.640 median 0.800; |applied| / |BA| median 0.981
+moss_image_sft_4step_v2.0: 168 modules, |BA| / |W| median 3.40e-04; cosine(applied, BA) min 0.267 median 0.452; |applied| / |BA| median 0.594
+   bf16 has 8 mantissa bits: a delta far below the weight's step is rounded away or rounded to a full step, so the applied delta is a noisy version of B A. Bake small or few step LoRAs to fp32 (--format fp32), or keep them as LoRAs.

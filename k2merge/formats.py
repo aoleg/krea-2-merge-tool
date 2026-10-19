@@ -17,8 +17,7 @@ from dataclasses import dataclass, field
 import torch
 
 from .hadamard import build_hadamard, rotate_weight, unrotate_weight
-from .keys import (CKPT_PREFIXES, fp8_full_precision_mm, in_fp8_recipe, in_int8_recipe,
-                   strip_prefixes)
+from .keys import CKPT_PREFIXES, ArchProfile, profile_of_module, strip_prefixes
 from .st_io import DTYPES, FLOAT_TAGS, TensorReader
 
 FP8_MAX = 448.0
@@ -36,8 +35,9 @@ L_INT8 = "int8"
 OUTPUT_FORMATS = ("keep", "fp32", "fp16", "bf16", "fp8", "fp8_scaled", "int8_convrot")
 OUTPUT_DTYPE_TAG = {"fp32": "F32", "fp16": "F16", "bf16": "BF16"}
 # Passthrough dtype of non quantized float tensors in a quantized output:
-#   official: mirror the official Krea 2 file of that format (int8: fp32 -> bf16 except the
-#             RMSNorm ".scale" vectors; fp8 scaled: every fp32 -> bf16)
+#   official: mirror the official file of that format (Krea 2 int8: fp32 -> bf16 except the
+#             RMSNorm ".scale" vectors; Krea 2 fp8 scaled: every fp32 -> bf16; MOSS-Image: fp32 -> bf16
+#             except rope.bands, norms stay as they are)
 #   keep:     keep the source dtype
 #   bf16:     every fp32 -> bf16
 PASSTHROUGH = ("official", "keep", "bf16")
@@ -134,8 +134,12 @@ class FileFormat:
                         if mod + "." + extra in keyset:
                             self.consumed.add(mod + "." + extra)
 
-        # 2. per tensor descriptors
+        # 2. per tensor descriptors; MOSS-Image's per layer attention config belongs to the int8 layout and is
+        #    written again by the planner when the output is int8 convrot
         for k in keys:
+            if k.endswith(".comfy_attention.config"):
+                self.consumed.add(k)
+                continue
             if not k.endswith(".comfy_quant"):
                 continue
             mod = k[: -len(".comfy_quant")]
@@ -344,55 +348,61 @@ class OutputSpec:
 
 
 def plan_weight(module: str, shape, src_tag: str, src_layout: str, out_format: str,
-                passthrough: str = "official", fp8_layer_set: str = "official") -> OutputSpec:
+                passthrough: str = "official", fp8_layer_set: str = "official",
+                profile: ArchProfile | None = None) -> OutputSpec:
     """Decides the storage of one weight tensor for the requested output format.
 
-    module: bare module name (prefix stripped). src_layout: layout in the input.
+    module: bare module name (prefix stripped). src_layout: layout in the input. profile: the
+    architecture of the file; None takes the one the module name belongs to.
     """
     is_float = src_tag in FLOAT_TAGS or src_layout != L_PLAIN
     if not is_float:
         return OutputSpec("raw", src_tag)
+    prof = profile or profile_of_module(module)
     key = module + ".weight"
 
     if out_format == "keep":
         if src_layout == L_INT8_CONVROT:
             return _int8_spec(CONVROT_GROUP)
         if src_layout in (L_FP8_LEGACY, L_FP8_META, L_FP8_CQ):
-            return OutputSpec("fp8_scaled", "F8_E4M3", layer_conf=_fp8_conf(fp8_full_precision_mm(module)))
+            return OutputSpec("fp8_scaled", "F8_E4M3", layer_conf=_fp8_conf(prof.fp8_full_precision_mm(module)))
         if src_layout == L_FP8:
             return OutputSpec("fp8", "F8_E4M3")
         if src_layout == L_INT8:
             # unrotated int8 is read only; keep writes it as int8 convrot when eligible, else bf16
             return _int8_spec(CONVROT_GROUP) if convrot_eligible(shape) else OutputSpec("plain", "BF16")
-        return OutputSpec("plain", passthrough_tag(key, src_tag, "keep", passthrough))
+        return OutputSpec("plain", passthrough_tag(key, src_tag, "keep", passthrough, prof))
 
     if out_format in ("fp32", "fp16", "bf16"):
         return OutputSpec("plain", OUTPUT_DTYPE_TAG[out_format])
 
     if out_format == "fp8":
-        if len(shape) == 2 and in_fp8_recipe(module, include_txtfusion=True):
+        if len(shape) == 2 and prof.in_fp8(module, include_txtfusion=True):
             return OutputSpec("fp8", "F8_E4M3")
-        return OutputSpec("plain", passthrough_tag(key, src_tag, out_format, passthrough))
+        return OutputSpec("plain", passthrough_tag(key, src_tag, out_format, passthrough, prof))
 
     if out_format == "fp8_scaled":
-        if len(shape) == 2 and in_fp8_recipe(module, include_txtfusion=(fp8_layer_set == "official")):
-            return OutputSpec("fp8_scaled", "F8_E4M3", layer_conf=_fp8_conf(fp8_full_precision_mm(module)))
-        return OutputSpec("plain", passthrough_tag(key, src_tag, out_format, passthrough))
+        if len(shape) == 2 and prof.in_fp8(module, include_txtfusion=(fp8_layer_set == "official")):
+            return OutputSpec("fp8_scaled", "F8_E4M3", layer_conf=_fp8_conf(prof.fp8_full_precision_mm(module)))
+        return OutputSpec("plain", passthrough_tag(key, src_tag, out_format, passthrough, prof))
 
     if out_format == "int8_convrot":
-        if in_int8_recipe(module) and convrot_eligible(shape):
+        if prof.in_int8(module) and convrot_eligible(shape):
             return _int8_spec(CONVROT_GROUP)
-        return OutputSpec("plain", passthrough_tag(key, src_tag, out_format, passthrough))
+        return OutputSpec("plain", passthrough_tag(key, src_tag, out_format, passthrough, prof))
 
     raise FormatError(f"unknown output format {out_format!r}")
 
 
-def passthrough_tag(key: str, src_tag: str, out_format: str, passthrough: str) -> str:
-    """Storage dtype of a float tensor that is not quantized in a quantized or kept output."""
+def passthrough_tag(key: str, src_tag: str, out_format: str, passthrough: str,
+                    profile: ArchProfile | None = None) -> str:
+    """Storage dtype of a float tensor that is not quantized in a quantized or kept output. key: bare."""
     if src_tag in ("F8_E4M3", "F8_E5M2", "I8"):
         return "BF16"
-    if passthrough == "official" and out_format == "int8_convrot" and key.endswith(".scale") and src_tag in ("BF16", "F16", "F32"):
-        return "F32"          # the official int8 file keeps RMSNorm scales in fp32 (upcast is exact)
+    prof = profile or profile_of_module(key)
+    if (passthrough == "official" and out_format in ("fp8", "fp8_scaled", "int8_convrot")
+            and prof.keeps_f32(key, out_format) and src_tag in ("BF16", "F16", "F32")):
+        return "F32"          # e.g. the official Krea 2 int8 file keeps RMSNorm scales in fp32 (upcast is exact)
     if src_tag != "F32":
         return src_tag
     if passthrough == "bf16":
@@ -417,10 +427,27 @@ def _int8_spec(gs: int) -> OutputSpec:
     return OutputSpec("int8_convrot", "I8", descriptor=comfy_quant_bytes(conf), group_size=gs)
 
 
-def plan_plain_tensor(key: str, src_tag: str, out_format: str, passthrough: str) -> str:
+def plan_plain_tensor(key: str, src_tag: str, out_format: str, passthrough: str,
+                      profile: ArchProfile | None = None) -> str:
     """Storage dtype tag of a non weight float tensor (bias, norm, modulation)."""
     if src_tag not in FLOAT_TAGS:
         return src_tag
     if out_format in ("fp32", "fp16", "bf16"):
+        prof = profile or profile_of_module(key)
+        if prof.family != "krea2" and prof.keeps_f32(key, out_format):
+            return "F32"      # the official MOSS-Image bf16 file keeps rope.bands in fp32
         return OUTPUT_DTYPE_TAG[out_format]
-    return passthrough_tag(key, src_tag, out_format, passthrough)
+    return passthrough_tag(key, src_tag, out_format, passthrough, profile)
+
+
+INT8_CLIP_CHOICES = ("auto",) + INT8_CLIPS
+
+
+def resolve_int8_clip(clip: str | None, profile: ArchProfile | None) -> str:
+    """auto (or nothing): the rule that reproduces the architecture's official int8 file (Krea 2 mse,
+    MOSS-Image absmax)."""
+    if clip in INT8_CLIPS:
+        return clip
+    if clip not in (None, "", "auto"):
+        raise FormatError(f"int8 clip {clip!r}: choose one of {', '.join(INT8_CLIP_CHOICES)}")
+    return profile.int8_clip if profile is not None else "mse"

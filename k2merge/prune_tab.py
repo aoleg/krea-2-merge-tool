@@ -106,8 +106,11 @@ class PruneTab(ttk.Frame):
 
     def options(self) -> LoraMergeOptions:
         ret, cap, floor = self.rule()
+        from .gui import kept_block_count
         return LoraMergeOptions(rank_mode="dynamic", retention=ret, rank_cap=cap, rank_floor=floor,
-                                naming=self.naming.get(), dtype=self.dtype.get())
+                                naming=self.naming.get(), dtype=self.dtype.get(),
+                                block_count=kept_block_count(getattr(self, "_block_count", None),
+                                                             self.inputs()[0].path if self.inputs() else ""))
 
     def to_recipe(self) -> dict:
         return {"function": "lora_merge", "inputs": [i.to_dict() for i in self.inputs()],
@@ -117,6 +120,7 @@ class PruneTab(ttk.Frame):
         inputs = [LoraInput.from_dict(d) for d in r.get("inputs", [])][:1]
         self.list.load(inputs)
         o = LoraMergeOptions.from_dict(r.get("options"))
+        self._block_count = o.block_count
         self.retention.set(f"{float(o.retention):.3f}")
         self.cap.set(str(o.rank_cap) if o.rank_cap else "")
         self.floor.set(str(o.rank_floor))

@@ -1,11 +1,11 @@
 # Krea 2 Merge Tool
 
-Merges, analyzes, extracts and converts Krea 2 diffusion models on Windows, with a GUI and a CLI.
+Merges, analyzes, extracts and converts Krea 2 and MOSS-Image diffusion models on Windows, with a GUI and a CLI. The architecture of every run is detected from the files (see [MOSS-Image](#moss-image)).
 
 - **LoRA merge**: several LoRA or LoKr files into one LoRA, exact when the inputs are ordinary LoRAs, with per LoRA strength and block shaping.
 - **Analysis**: the singular value spectrum of every weight delta, the rank needed and the energy retained per layer group, a noise edge from the storage formats, and a Spectrum tab that plots it all and compares two analyses.
 - **Extract**: a LoRA from the difference between two checkpoints in any storage format.
-- **Checkpoint merge and convert**: one to three checkpoints and up to four LoRAs, nine merge methods, output in fp16, bf16, fp32, fp8, fp8 scaled or int8 convrot in the exact layout of the official Krea 2 files, or the result written as a LoRA.
+- **Checkpoint merge and convert**: one to three checkpoints and up to four LoRAs, nine merge methods, output in fp16, bf16, fp32, fp8, fp8 scaled or int8 convrot in the exact layout of the official Krea 2 and MOSS-Image files, or the result written as a LoRA.
 - **Metadata**: what any file says about itself, with the author's folder paths taken out of it in place in milliseconds, a strip for publishing, an editor for the model spec fields, and the recipe of a merged file loaded back into the tab that made it.
 
 Every run is described by a recipe. The recipe is stored in the output file's metadata with file names only, never folders, so a published file does not reveal where its inputs lived; it can be reloaded into the GUI, which looks for the named inputs next to the file, and reproduces the file byte for byte.
@@ -22,7 +22,7 @@ Every run is described by a recipe. The recipe is stored in the output file's me
 
 The GUI follows the display DPI and the Windows text size setting (Settings > Accessibility > Text size), which classic Windows programs otherwise ignore. The Scale box in the top right overrides it with a fixed 50 to 200 percent and applies at once; a scale below 100 percent fits more on a small screen with large Windows scaling. When the window is smaller than the layout, scroll bars appear and the whole window scrolls with the bars or the mouse wheel (Shift + wheel scrolls sideways). Over a text box or a table with more content than it shows, the wheel scrolls that box instead. Each text box and table has a grip under it: drag it to make the box taller or shorter, and double click it to restore the default height. Theme, scale and box heights are remembered in `settings.json` next to the tool; theme and scale can also be given on the command line with `--theme` and `--scale`.
 
-The tool needs a Krea 2 diffusion model file. The text encoder and the VAE are separate files and are never touched.
+The tool needs a Krea 2 or MOSS-Image diffusion model file. The text encoder and the VAE are separate files and are never touched.
 
 ## Files it reads and writes
 
@@ -31,19 +31,29 @@ The tool needs a Krea 2 diffusion model file. The text encoder and the VAE are s
 | bf16, fp16, fp32 | yes | yes |
 | fp8 plain | yes | yes, with a warning: small weights are lost |
 | fp8 scaled (official Krea 2 layout, legacy ComfyUI layout, per tensor descriptors) | yes | official layout |
-| int8 convrot (official Krea 2 layout) | yes | yes |
+| int8 convrot (official Krea 2 and MOSS-Image layouts) | yes | yes |
 | int8 without rotation | yes | no |
 | LoRA: ComfyUI, kohya, musubi-tuner, diffusers, PEFT | yes | ComfyUI or kohya naming |
 | LoKr (ai-toolkit, full or decomposed factors) | yes | converted to a LoRA by SVD |
 | DoRA | refused | no |
 
-Quantized outputs reproduce the official files: converting the official bf16 file gives the official fp8 scaled file bit for bit, and the official int8 convrot file bit for bit with the default MSE clip (`--int8-clip absmax` gives plain absmax scaling). The same 224 int8 layers with group size 256 and per row scales, the same 256 fp8 layers with scalar scales and the full precision flag on the output projections.
+Quantized outputs reproduce the official files: converting the official bf16 file gives the official fp8 scaled file bit for bit, and the official int8 convrot file bit for bit with the default `auto` clip, which is the least squares (MSE) clip for Krea 2 and plain absmax scaling for MOSS-Image (`--int8-clip mse` or `absmax` forces one rule). The same 224 int8 layers with group size 256 and per row scales, the same 256 fp8 layers with scalar scales and the full precision flag on the output projections.
 
 LoRA files in the diffusers naming of the Krea 2 conversion (`transformer.transformer_blocks.N.attn.to_q`, `text_fusion`, `img_in`, `time_embed`, `txt_in`, `time_mod_proj`, as written by OneTrainer and ai-toolkit) are mapped to the ComfyUI names automatically, get block shaping, and can be written out in ComfyUI or kohya naming.
 
+## MOSS-Image
+
+MOSS-Image (OpenMOSS, 5 B parameters, 42 single stream layers with fused `proj.qkv` and `proj.ffn_up_gate`) is supported next to Krea 2 by every function. The tool detects the architecture from the checkpoint, or from the LoRA names when a run has no checkpoint, and takes from it the block count for shaping, the layer groups of the reports, the quantized layer sets and the int8 clip rule.
+
+- **int8 convrot** output reproduces the official `moss_image_*_int8_convrot` layout: the 168 layer projections quantized with absmax per row scales, norms left in bf16, `rope.bands` in fp32, and the per layer `comfy_attention.config` tensor ComfyUI reads.
+- **fp8 and fp8 scaled** have no official MOSS-Image file; the tool quantizes the same 168 projections.
+- **LoRAs** with a fused `proj.qkv` (ai-toolkit) match the checkpoint directly. LoRAs with separate `proj.q`, `proj.k`, `proj.v` (the 4-step LoRAs) are folded into one qkv module when read: the three downs are stacked and the up is block diagonal, which is exactly how ComfyUI applies them. Such a LoRA merges with a fused one, bakes, prunes and analyzes like any other. Written with ComfyUI naming it comes out fused; with the input file's own naming it comes out as q, k and v again.
+- **Precision**: MOSS-Image LoRA deltas are a small fraction of the weights, and bf16 rounding keeps only part of them (median cosine to the LoRA's delta 0.80 for a style LoRA, 0.45 for the 4-step LoRA). Bake few step LoRAs with `--format fp32`, or keep them as LoRAs.
+- **Not supported**: the time embedding overlay files that come with the few step LoRAs, diffusers named MOSS-Image LoRAs, and Forge Neo, which cannot load MOSS-Image.
+
 ## Block shaping
 
-Every LoRA row and the second checkpoint can be shaped across the model's 28 blocks with the Neo-LoraCtl presets: COMPOSITION (blocks 0 to 8), CHARACTER (9 to 18), STYLE (19 to 27), with the modifiers Emphasize, Suppress and Isolate and a contrast slider. FULL, the default, applies no shaping. Two one click recipes come from Neo-LoraCtl's calibration:
+Every LoRA row and the second checkpoint can be shaped across the model's blocks with the Neo-LoraCtl presets: COMPOSITION, CHARACTER and STYLE are the first, middle and last third (Krea 2, 28 blocks: 0 to 8, 9 to 18, 19 to 27; MOSS-Image, 42 layers: 0 to 13, 14 to 27, 28 to 41), with the modifiers Emphasize, Suppress and Isolate and a contrast slider. FULL, the default, applies no shaping. Two one click recipes come from Neo-LoraCtl's calibration:
 
 - Character LoRA, keep the checkpoint's style: STYLE + Suppress at contrast 0.5.
 - Style LoRA, protect faces: CHARACTER + Suppress at contrast 0.5.
@@ -100,7 +110,7 @@ The Metadata tab shows what a file says about itself and changes it without movi
 
 **Strip all metadata** writes a new file with nothing left but what the file needs in order to load. On an fp8 scaled checkpoint that is `_quantization_metadata`, the layer table the loader reads; on a bf16 or int8 convrot file it is nothing at all, exactly like the official releases.
 
-**The editor** writes the model spec fields (title, author, description, license, trigger phrase, the required architecture, implementation and resolution), and says before you apply whether the header has room or a new file is needed. `Krea-2` and `Krea-2/lora` are the architecture strings the real Krea 2 trainers write. The data hash is the sha256 of the tensor data, which is the one hash a metadata edit does not change.
+**The editor** writes the model spec fields (title, author, description, license, trigger phrase, the required architecture, implementation and resolution), and says before you apply whether the header has room or a new file is needed. `Krea-2` and `Krea-2/lora` are the architecture strings the real Krea 2 trainers write; a MOSS-Image file is offered `MOSS-Image` and `MOSS-Image/lora`. The data hash is the sha256 of the tensor data, which is the one hash a metadata edit does not change.
 
 **Load recipe into tab** takes a file this tool made back to the tab it came from and says which of its inputs it could find; **Lineage** follows those inputs' own recipes and prints how the file was made, step by step.
 
@@ -156,6 +166,10 @@ run.bat convert krea2_turbo_bf16.safetensors krea2_turbo_int8_convrot.safetensor
 ```
 
 ```bash
+run.bat ckpt-merge -A moss_image_sft_bf16.safetensors --lora "moss_realism_v1.safetensors|1.0" -o moss_realism_int8_convrot.safetensors --format int8_convrot
+```
+
+```bash
 run.bat lora-merge "epoch08.safetensors|1" "epoch10.safetensors|1" -o merged.safetensors --average
 ```
 
@@ -207,5 +221,5 @@ LoRA and checkpoint arguments take the form `FILE|WEIGHT|SHAPING`, where SHAPING
 
 - `krea2_merge_tool.py`: entry point.
 - `k2merge/`: engine, CLI, GUI.
-- `reference/`: the headers of the three official Krea 2 files and a script that summarizes them.
+- `reference/`: the headers of the three official Krea 2 files and the four official MOSS-Image files, and a script that summarizes them.
 - `working_specs.md`, `development_plan.md`: the specification and the plan.

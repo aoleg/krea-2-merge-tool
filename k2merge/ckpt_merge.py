@@ -19,8 +19,8 @@ from .blocks import Shaping
 from .engine import (Cancelled, RunResult, build_metadata, execute_plan, pick_device, recipe_for_metadata,
                      plan_from_primary)
 from .extract import ExtractOptions, _svd
-from .formats import FLOAT_TAGS, FileFormat, FormatError
-from .keys import KREA2_BLOCKS, block_index_any, canon, ckpt_module, group_of
+from .formats import FLOAT_TAGS, FileFormat, FormatError, resolve_int8_clip
+from .keys import KREA2, block_index_any, canon, ckpt_module, group_of, profile_for, resolve_block_count
 from .lora import LoraFile, checkpoint_modules, resolve
 from .lora_merge import DTYPE_TAG, DTYPE_TORCH, LoraInput, output_keys
 from .sources import LoraSource
@@ -54,14 +54,14 @@ class CkptMergeOptions:
     output_format: str = "bf16"
     passthrough: str = "official"
     fp8_layer_set: str = "official"
-    int8_clip: str = "mse"            # mse (reproduces the official int8 file) | absmax
+    int8_clip: str = "auto"           # auto (the architecture's official rule) | mse (official Krea 2) | absmax (official MOSS-Image)
     vectors_from: str = "merge"       # merge | A | B | C: norm scales, modulation vectors and biases merged like the rest, or copied from one input
     keep_metadata: bool = True
     redact_inherited: bool = True     # strip paths out of the metadata inherited from A (a trainer's dataset folders, an upstream recipe)
     lora_mode: str = "after"          # after | task_vectors (TIES / DARE)
     output_as_lora: bool = False
     lora_out: dict = field(default_factory=lambda: {"rank": 32, "naming": "comfy", "dtype": "fp16", "method": "randomized"})
-    block_count: int = KREA2_BLOCKS
+    block_count: int | None = None    # None: from the checkpoint (Krea 2 28, MOSS-Image 42)
     use_gpu: bool = True
 
     def to_dict(self):
@@ -115,6 +115,8 @@ class MergeContext:
     only_in_a: list = field(default_factory=list)
     only_in_b: list = field(default_factory=list)
     warnings: list = field(default_factory=list)
+    profile: object = KREA2
+    block_count: int = KREA2.blocks
 
 
 def _open_context(A: CkptInput, B: CkptInput | None, C: CkptInput | None, loras: list[LoraInput],
@@ -126,6 +128,8 @@ def _open_context(A: CkptInput, B: CkptInput | None, C: CkptInput | None, loras:
     if opts.method in methods.NEEDS_C and c is None and b is not None:
         log(f"{opts.method}: no reference given, using A as the reference")
     ctx = MergeContext(a, b, c, [], {}, opts, device)
+    ctx.profile = profile_for(a.reader.infos)
+    ctx.block_count = resolve_block_count(opts.block_count, ctx.profile, a.reader.infos)
     if opts.vectors_from not in VECTOR_SOURCES:
         raise FormatError(f"vectors from {opts.vectors_from!r}: choose one of {', '.join(VECTOR_SOURCES)}")
     if _vector_source(ctx) is None:
@@ -151,7 +155,7 @@ def _open_context(A: CkptInput, B: CkptInput | None, C: CkptInput | None, loras:
     for li in loras:
         lf = LoraFile(li.path)
         res = resolve(lf, mods, shapes)
-        src = LoraSource(lf, strength=li.strength, shaping=li.shaping, block_count=opts.block_count,
+        src = LoraSource(lf, strength=li.strength, shaping=li.shaping, block_count=ctx.block_count,
                          label=os.path.basename(li.path))
         src.module_names = {cn: ckpt_module(k)[0] for cn, k in res.matched.items()}
         if res.unmatched:
@@ -234,7 +238,7 @@ def merged_value(ctx: MergeContext, key: str) -> torch.Tensor:
 
     out = a
     if b is not None:
-        wB = ctx.opts_weight_B * _block_factor(ctx.opts_shaping_B, module, opts.block_count)
+        wB = ctx.opts_weight_B * _block_factor(ctx.opts_shaping_B, module, ctx.block_count)
         m, p = opts.method, opts.params
         if m == "weighted_sum":
             out = methods.weighted_sum(a, b, wB)
@@ -321,9 +325,9 @@ def merge_checkpoints(A: CkptInput, B: CkptInput | None, C: CkptInput | None, lo
             return None
 
         plan = plan_from_primary(ctx.A.fmt, opts.output_format, opts.passthrough, opts.fp8_layer_set,
-                                 compute_for=compute_for, touched_keys=touched)
+                                 compute_for=compute_for, touched_keys=touched, profile=ctx.profile)
         plan.notes.extend(ctx.warnings)
-        plan.int8_clip = opts.int8_clip
+        plan.int8_clip = resolve_int8_clip(opts.int8_clip, ctx.profile)
         meta = build_metadata(plan, ctx.A.reader.metadata, recipe, opts.keep_metadata, opts.redact_inherited)
         inputs = tuple(i.path for i in [A, B, C] + list(loras) if i is not None)
         return execute_plan(plan, out_path, meta, ctx.device, progress, cancel, log, input_paths=inputs)

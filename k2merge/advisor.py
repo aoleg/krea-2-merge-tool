@@ -28,7 +28,7 @@ from .ckpt_merge import CkptMergeOptions, _Ckpt
 from .engine import Cancelled, pick_device
 from .extract import ExtractOptions
 from .formats import FLOAT_TAGS, FormatError
-from .keys import GROUPS, KREA2_BLOCKS, block_index, ckpt_module, group_of
+from .keys import GROUPS, KREA2_BLOCKS, block_count, block_index, ckpt_module, group_of
 
 # ----------------------------------------------------------------------------- goals and thresholds
 GOALS = {
@@ -361,6 +361,7 @@ def measure(a_path: str, b_path: str, c_path: str | None = None, depth: str = "f
                    "C_quantized": bool(C.fmt.layout_counts()) if C else None,
                    "A_dtype": A.fmt.dominant_float(), "B_dtype": B.fmt.dominant_float(), "C_dtype": C.fmt.dominant_float() if C else None,
                    "depth": depth, "targets": len(targets), "others": len(others), "device": str(device),
+                   "blocks": block_count(A.reader.infos) or KREA2_BLOCKS,
                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")}
         return rep
     finally:
@@ -389,8 +390,9 @@ def compute_features(rep: AdvisorReport) -> dict:
     groups: dict = {}
     zones: dict = {}
     tot = {"eA": 0.0, "eB": 0.0, "dot": 0.0, "wn": 0.0, "n": 0}
+    nblocks = int(rep.run.get("blocks") or KREA2_BLOCKS)       # reports saved before MOSS-Image support are Krea 2
     for v in rep.relation.values():
-        for key, store in ((v["group"], groups), (zone_of(v["block"]), zones)):
+        for key, store in ((v["group"], groups), (zone_of(v["block"], nblocks), zones)):
             a = store.setdefault(key, {"eA": 0.0, "eB": 0.0, "dot": 0.0, "wn": 0.0, "n": 0})
             a["eB"] += v["eB"]; a["wn"] += v["wn"]; a["n"] += v["n"]
             if has_c:

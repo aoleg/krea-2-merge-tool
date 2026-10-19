@@ -26,8 +26,8 @@ from .blocks import BLOCK_PRESETS, MODIFIERS, RECIPES, RECIPE_LABELS, Shaping
 from .ckpt_merge import VECTOR_SOURCES, CkptInput, CkptMergeOptions
 from .engine import Cancelled
 from .extract import ExtractOptions
-from .formats import OUTPUT_FORMATS, PASSTHROUGH
-from .keys import KREA2_BLOCKS
+from .formats import INT8_CLIP_CHOICES, OUTPUT_FORMATS, PASSTHROUGH
+from .keys import KREA2_BLOCKS, blocks_of_keys
 from .lora_merge import LoraInput, LoraMergeOptions
 from .methods import ADVANCED, METHODS, METHOD_LABELS, NEEDS_C
 from .spectrum_tab import SpectrumTab
@@ -36,6 +36,28 @@ from .prune_tab import PruneTab
 from .meta_tab import MetaTab
 
 ST_FILES = [("safetensors", "*.safetensors"), ("all files", "*.*")]
+_BLOCKS_CACHE: dict = {}
+
+
+def file_blocks(path: str) -> int:
+    """Block count of the architecture of a file (header only, cached); Krea 2 when there is no readable file."""
+    if not path or not os.path.isfile(path):
+        return KREA2_BLOCKS
+    key = (os.path.abspath(path), os.path.getmtime(path))
+    if key not in _BLOCKS_CACHE:
+        try:
+            from .st_io import TensorReader
+            with TensorReader(path) as r:
+                _BLOCKS_CACHE[key] = blocks_of_keys(r.infos)
+        except Exception:  # noqa: BLE001  (a bad file shows its error when the run starts)
+            _BLOCKS_CACHE[key] = KREA2_BLOCKS
+    return _BLOCKS_CACHE[key]
+
+
+def kept_block_count(loaded: int | None, path: str) -> int | None:
+    """A block count a loaded recipe set (the GUI has no widget for it): kept while it matches the architecture of
+    the tab's file, dropped (None = from the model) once a file of another architecture is chosen."""
+    return loaded if loaded and int(loaded) == file_blocks(path) else None
 SETTINGS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "settings.json")
 
 # Dark palette from the original krea-2-lora-merge-tool v10. Light = the native Windows theme.
@@ -459,6 +481,7 @@ class ShapingRow(ttk.LabelFrame):
         app.themed.append(self)
         self.curve.grid(row=3, column=1, columnspan=2, sticky="ew", **PAD)
         self.curve.bind("<Configure>", lambda _e: self.draw_curve())    # redraw at the real width (resize, rescale, recipe before mapping)
+        self.slot.var.trace_add("write", lambda *_a: self.draw_curve())  # the block count follows the file's architecture
         self.info = ttk.Label(self.detail, text="", style="Hint.TLabel")
         self.info.grid(row=3, column=3, sticky="w")
         if kind == "ckpt":
@@ -539,7 +562,7 @@ class ShapingRow(ttk.LabelFrame):
         c = self.curve
         c.delete("all")
         try:
-            f = self.shaping().factors(KREA2_BLOCKS)
+            f = self.shaping().factors(file_blocks(self.slot.get()))
         except ValueError:
             return
         w = int(c.winfo_width()) if c.winfo_width() > 1 else px(280)
@@ -728,7 +751,9 @@ class LoraMergeTab(ttk.Frame):
         return LoraMergeOptions(average=self.average.get(), rank_mode=self.rank_mode.get(),
                                 rank=int(self.rank.get()) if self.rank.get().strip().isdigit() else None,
                                 group_ranks=dict(self.group_ranks), modules=self.modules.get(),
-                                naming=self.naming.get(), dtype=self.dtype.get())
+                                naming=self.naming.get(), dtype=self.dtype.get(),
+                                block_count=kept_block_count(getattr(self, "_block_count", None),
+                                                             self.inputs()[0].path if self.inputs() else ""))
 
     def to_recipe(self) -> dict:
         return {"function": "lora_merge", "inputs": [i.to_dict() for i in self.inputs()],
@@ -737,6 +762,7 @@ class LoraMergeTab(ttk.Frame):
     def from_recipe(self, r: dict):
         self.list.load([LoraInput.from_dict(d) for d in r.get("inputs", [])])
         o = LoraMergeOptions.from_dict(r.get("options"))
+        self._block_count = o.block_count
         self.average.set(o.average)
         self.rank_mode.set(o.rank_mode)
         self.rank.set(str(o.rank or 32))
@@ -884,7 +910,8 @@ class ExtractTab(ttk.Frame):
         return ExtractOptions(rank=int(self.rank.get()) if self.rank.get().strip().isdigit() else 32,
                               group_ranks=dict(self.group_ranks) if self.use_groups.get() else {},
                               filter=self.filter.get(), include=self.include.get().strip(), exclude=self.exclude.get().strip(),
-                              method=self.method.get(), naming=self.naming.get(), dtype=self.dtype.get())
+                              method=self.method.get(), naming=self.naming.get(), dtype=self.dtype.get(),
+                              block_count=kept_block_count(getattr(self, "_block_count", None), self.target.get()))
 
     def to_recipe(self) -> dict:
         return {"function": "extract", "base": self.base.get(), "target": self.target.get(),
@@ -894,6 +921,7 @@ class ExtractTab(ttk.Frame):
         self.base.set(r.get("base"))
         self.target.set(r.get("target"))
         o = ExtractOptions.from_dict(r.get("options"))
+        self._block_count = o.block_count
         self.rank.set(str(o.rank))
         self.group_ranks = dict(o.group_ranks)
         self.use_groups.set(bool(o.group_ranks))
@@ -1031,7 +1059,7 @@ class CkptTab(ttk.Frame):
         of = ttk.LabelFrame(left, text="Output", padding=px(6))
         of.pack(fill="x", pady=px(4))
         self.fmt = _labeled(of, 0, "format", lambda p: ttk.Combobox(p, values=list(OUTPUT_FORMATS), state="readonly", width=14),
-                            "keep = same format as A; fp8_scaled and int8_convrot use the official Krea 2 layouts")
+                            "keep = same format as A; fp8_scaled and int8_convrot use the official layouts of A's architecture")
         self.fmt.set("bf16")
         self.fmt.bind("<<ComboboxSelected>>", lambda _e: self._format_changed())
         self.out = FileSlot(of, app, "output", save=True)
@@ -1043,11 +1071,11 @@ class CkptTab(ttk.Frame):
                                     "dtype of tensors that stay unquantized: official mirrors the official file")
         self.passthrough.set("official")
         self.fp8_set = _labeled(body, 1, "fp8 layers", lambda p: ttk.Combobox(p, values=["official", "blocks"], state="readonly", width=10),
-                                "official = 256 layers incl. text fusion; blocks = the 224 block linears")
+                                "Krea 2: official = 256 layers incl. text fusion, blocks = the 224 block linears; MOSS-Image: the 168 layer projections")
         self.fp8_set.set("official")
-        self.int8_clip = _labeled(body, 2, "int8 clip", lambda p: ttk.Combobox(p, values=["mse", "absmax"], state="readonly", width=10),
-                                  "mse reproduces the official int8 file; absmax is plain scaling")
-        self.int8_clip.set("mse")
+        self.int8_clip = _labeled(body, 2, "int8 clip", lambda p: ttk.Combobox(p, values=list(INT8_CLIP_CHOICES), state="readonly", width=10),
+                                  "auto = the official rule (Krea 2 mse, MOSS-Image absmax); mse = least squares clip; absmax = plain scaling")
+        self.int8_clip.set("auto")
         self.fmt_rows = {name: list(body.grid_slaves(row=i)) for i, name in enumerate(("passthrough", "fp8", "int8"))}
         self.keep_meta = tk.BooleanVar(value=True)
         ttk.Checkbutton(body, text="keep A's metadata", variable=self.keep_meta).grid(row=3, column=0, columnspan=3, sticky="w", **PAD)
@@ -1133,6 +1161,7 @@ class CkptTab(ttk.Frame):
         o.lora_out = {"rank": int(self.lora_rank.get()) if self.lora_rank.get().strip().isdigit() else 32,
                       "naming": self.lora_naming.get(), "dtype": "fp16", "method": "randomized"}
         o.use_gpu = self.app.use_gpu()
+        o.block_count = kept_block_count(getattr(self, "_block_count", None), self.A.get())
         return o
 
     def inputs(self):
@@ -1159,6 +1188,7 @@ class CkptTab(ttk.Frame):
         self.C.set(C.path if C else None)
         self.lora_list.load([LoraInput.from_dict(d) for d in r.get("loras", [])])
         o = CkptMergeOptions.from_dict(r.get("options"))
+        self._block_count = o.block_count
         if o.method in ADVANCED:
             self.advanced.set(True)
             self._refresh_methods()
@@ -1182,7 +1212,7 @@ class CkptTab(ttk.Frame):
         self._method_changed()
         self._format_changed()
         self._as_lora_changed()
-        if (o.output_as_lora or o.passthrough != "official" or o.fp8_layer_set != "official" or o.int8_clip != "mse" or not o.keep_metadata
+        if (o.output_as_lora or o.passthrough != "official" or o.fp8_layer_set != "official" or o.int8_clip not in ("auto", "mse") or not o.keep_metadata
                 or not o.redact_inherited
                 or o.vectors_from != "merge"):
             self.adv.set_open(True)
@@ -1719,7 +1749,7 @@ class MergeApp(tk.Tk):
         if r["function"] == "convert":
             r = {"function": "ckpt_merge", "A": {"file": r["inputs"][0]["file"]}, "loras": [],
                  "options": {"output_format": r.get("output_format", "bf16"), "passthrough": r.get("passthrough", "official"),
-                             "int8_clip": r.get("int8_clip", "mse")},
+                             "int8_clip": r.get("int8_clip", "auto")},
                  "output": r.get("output")}
         target.from_recipe(r)
         self.nb.select(target)

@@ -32,7 +32,8 @@ def main() -> int:
 
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     ref = os.path.join(here, "reference")
-    names = ("krea2_turbo_bf16", "krea2_turbo_fp8_scaled", "krea2_turbo_int8_convrot")
+    from k2merge.refcheck import REFERENCE_FILES
+    names = tuple(n for family in REFERENCE_FILES.values() for n in family)
     for n in names:
         p = os.path.join(ref, n + ".header.json")
         try:

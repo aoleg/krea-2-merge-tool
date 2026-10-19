@@ -182,6 +182,7 @@ class MetaTab(ttk.Frame):
             return
         info = inspect_path(path)
         self.is_lora = info.get("kind") == "lora"
+        self.family = info.get("family")
         lines = [info["text"]]
         if not self.meta:
             lines.append("no metadata at all, as in the official bf16 and int8 convrot files")
@@ -217,7 +218,7 @@ class MetaTab(ttk.Frame):
 
     def _fill_editor(self):
         cur = read_modelspec(self.meta)
-        for k, v in modelspec_defaults(self.is_lora).items():
+        for k, v in modelspec_defaults(self.is_lora, getattr(self, "family", None)).items():
             cur[k] = cur.get(k) or v
         if not cur.get("merged_from"):
             cur["merged_from"] = self._merged_from()

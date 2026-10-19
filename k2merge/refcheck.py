@@ -1,26 +1,42 @@
 """Structural comparison of a safetensors header against a reference header.
 
-Used to check that a produced file has the structure of an official Krea 2
-file: same keys, same dtypes, same quantization metadata, same tensor ranks.
-Shapes are ignored when the reference is the full size file and the produced
-file is a mini fixture.
+Used to check that a produced file has the structure of an official file of
+its architecture (Krea 2 or MOSS-Image): same keys, same dtypes, same
+quantization metadata, same tensor ranks. Shapes are ignored when the
+reference is the full size file and the produced file is a mini fixture.
 """
 from __future__ import annotations
 
 import json
 import os
 
+from .keys import FAMILIES, KREA2, detect_family
+
 REFERENCE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "reference")
-REFERENCE_NAMES = {
-    "bf16": "krea2_turbo_bf16",
-    "fp8_scaled": "krea2_turbo_fp8_scaled",
-    "int8_convrot": "krea2_turbo_int8_convrot",
+REFERENCE_NAMES = dict(KREA2.references)          # Krea 2, the names before MOSS-Image support
+# every official header under reference/, per family (selfcheck reads them all)
+REFERENCE_FILES = {
+    "krea2": ("krea2_turbo_bf16", "krea2_turbo_fp8_scaled", "krea2_turbo_int8_convrot"),
+    "moss": ("moss_image_base_bf16", "moss_image_sft_bf16", "moss_image_base_int8_convrot", "moss_image_sft_int8_convrot"),
 }
 
 
-def load_reference_header(kind: str) -> dict:
-    with open(os.path.join(REFERENCE_DIR, REFERENCE_NAMES[kind] + ".header.json"), encoding="utf-8") as f:
+def reference_name(kind: str, family: str = "krea2") -> str:
+    refs = FAMILIES[family].references
+    if kind not in refs:
+        raise KeyError(f"no official {kind} file exists for {FAMILIES[family].label}")
+    return refs[kind]
+
+
+def load_reference_header(kind: str, family: str = "krea2") -> dict:
+    with open(os.path.join(REFERENCE_DIR, reference_name(kind, family) + ".header.json"), encoding="utf-8") as f:
         return json.load(f)
+
+
+def reference_for(header: dict, kind: str) -> dict:
+    """The official header of `kind` for the architecture the header's keys belong to (Krea 2 by default)."""
+    p = detect_family([k for k in header if k != "__metadata__"]) or KREA2
+    return load_reference_header(kind, p.family)
 
 
 def _strip(key: str, prefix: str) -> str:

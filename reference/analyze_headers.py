@@ -1,6 +1,8 @@
 import json, re, sys, collections
-for name in ("bf16", "fp8_scaled", "int8_convrot"):
-    h = json.load(open(f"krea2_turbo_{name}.header.json", encoding="utf-8"))
+NAMES = ("krea2_turbo_bf16", "krea2_turbo_fp8_scaled", "krea2_turbo_int8_convrot",
+         "moss_image_base_bf16", "moss_image_sft_bf16", "moss_image_base_int8_convrot", "moss_image_sft_int8_convrot")
+for name in (sys.argv[1:] or NAMES):
+    h = json.load(open(f"{name}.header.json", encoding="utf-8"))
     meta = h.pop("__metadata__", None)
     print("=" * 70); print(name, "tensors:", len(h), "metadata keys:", list(meta)[:8] if meta else None)
     dt = collections.Counter(v["dtype"] for v in h.values()); print(" dtypes:", dict(dt))

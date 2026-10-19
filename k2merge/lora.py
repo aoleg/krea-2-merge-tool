@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 import torch
 
-from .keys import canon, strip_prefixes
+from .keys import RE_MOSS_SPLIT_QKV, canon, strip_prefixes
 from .st_io import TensorReader
 
 ROLE_TOKENS = {
@@ -53,6 +53,8 @@ class LoraModule:
     out_features: int = 0
     in_features: int = 0
     suffix: dict = field(default_factory=dict)  # role -> key suffix (for output naming)
+    # folded q/k/v module: [(part module, first output row, "q" | "k" | "v")]; empty for a module of the file
+    parts: list = field(default_factory=list)
 
 
 class LoraFile:
@@ -65,6 +67,7 @@ class LoraFile:
         self.modules: dict[str, LoraModule] = {}     # canon -> module
         self.convention = "unknown"
         self.unparsed: list[str] = []
+        self.folded = 0                                  # MOSS-Image layers whose q/k/v parts were folded
         self._parse()
 
     def close(self):
@@ -146,6 +149,38 @@ class LoraFile:
                 conv_votes["lokr"] = conv_votes.get("lokr", 0) + 1
             self.modules[c] = m
         self.convention = max(conv_votes, key=conv_votes.get) if conv_votes else "unknown"
+        self._fold_qkv()
+
+    def _fold_qkv(self):
+        """MOSS-Image: separate proj.q, proj.k, proj.v LoRA modules of one layer become one proj.qkv module, the
+        fused weight every MOSS-Image checkpoint has. Its down is the stack of the three downs (each with its own
+        scale folded in), its up is block diagonal: rows 0..n-1 from q, n..2n-1 from k, 2n..3n-1 from v. ComfyUI
+        slices the three into the fused weight the same way, so the delta is identical. A missing part
+        contributes zero rows."""
+        layers: dict[str, dict] = {}
+        for c, m in self.modules.items():
+            mm = RE_MOSS_SPLIT_QKV.match(m.name)
+            if mm is None or m.kind != "lora":
+                continue
+            layers.setdefault(mm.group(1), {"sep": mm.group(2)})[mm.group(3)] = m
+        for base, parts in layers.items():
+            sep = parts.pop("sep")
+            ms = [parts[p] for p in "qkv" if p in parts]
+            n = ms[0].out_features
+            if any(p.in_features != ms[0].in_features or p.out_features != n for p in ms):
+                continue                      # unequal parts: not the MOSS-Image layout, leave them alone
+            name = base + sep + "qkv"
+            c = canon(name)
+            if c in self.modules:
+                raise LoraFormatError(f"{self.path}: {name} is present both fused and as q/k/v parts")
+            folded = LoraModule(name=name, canon=c, kind="lora", rank=sum(p.rank for p in ms), alpha=None, scale=1.0,
+                                out_features=3 * n, in_features=ms[0].in_features,
+                                parts=[(p, "qkv".index(letter) * n, letter) for letter, p in
+                                       ((x, parts[x]) for x in "qkv" if x in parts)])
+            for p in ms:
+                del self.modules[p.canon]
+            self.modules[c] = folded
+            self.folded += 1
 
     def _lokr_geometry(self, m: LoraModule, alpha: float | None):
         r = m.roles
@@ -188,7 +223,7 @@ class LoraFile:
         ranks = self.ranks()
         alphas = sorted({round(m.scale, 4) for m in self.modules.values()})
         return (f"{self.convention}, {len(self.modules)} modules {kc}, rank {ranks[:4]}, "
-                f"applied scale {alphas[:4]}")
+                f"applied scale {alphas[:4]}" + (f", q/k/v folded into qkv in {self.folded} layers" if self.folded else ""))
 
     # ------------------------------------------------------------------ tensors
     def _t(self, key: str, device) -> torch.Tensor:
@@ -198,6 +233,17 @@ class LoraFile:
         """(down [r,in], up [out,r]) with the applied scale folded into down. None for LoKr."""
         if m.kind != "lora":
             return None
+        if m.parts:
+            downs, col = [], 0
+            up = None
+            for p, row, _letter in m.parts:
+                d, u = self.factors(p, device)
+                if up is None:
+                    up = torch.zeros(m.out_features, m.rank, device=u.device, dtype=torch.float32)
+                up[row:row + u.shape[0], col:col + p.rank] = u
+                downs.append(d)
+                col += p.rank
+            return torch.cat(downs, 0), up
         down = self._t(m.roles["down"], device).reshape(m.rank, -1)
         up = self._t(m.roles["up"], device).reshape(-1, m.rank)
         return down * m.scale, up

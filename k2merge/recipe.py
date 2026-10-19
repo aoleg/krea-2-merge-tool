@@ -145,5 +145,5 @@ def run_recipe(r: dict, output: str | None = None, base_dir: str | None = None, 
         src = _resolve(r["inputs"][0]["file"], base_dir)
         return convert_checkpoint(src, out, r.get("output_format", "bf16"), r.get("passthrough", "official"),
                                   r.get("fp8_layer_set", "official"), r.get("keep_metadata", True), None,
-                                  use_gpu, progress, cancel, log, int8_clip=r.get("int8_clip", "mse"))
+                                  use_gpu, progress, cancel, log, int8_clip=r.get("int8_clip", "auto"))
     raise ValueError(fn)

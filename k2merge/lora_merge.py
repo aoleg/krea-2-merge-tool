@@ -17,7 +17,8 @@ from . import TOOL_NAME, __version__
 from .analysis import AnalysisReport, analyze_sources, rank_for_energy
 from .blocks import Shaping
 from .engine import Cancelled, pick_device, recipe_for_metadata
-from .keys import KREA2_BLOCKS, block_index, canon, ckpt_module, group_of, strip_prefixes
+from .keys import (ArchProfile, block_index, canon, ckpt_module, group_of, profile_for, resolve_block_count,
+                   strip_prefixes)
 from .lora import LoraFile, LoraFormatError
 from .meta import redact_paths
 from .refcheck import load_reference_header
@@ -59,7 +60,7 @@ class LoraMergeOptions:
     write_alpha: bool = True
     keep_metadata: bool = True
     redact_inherited: bool = True      # strip paths out of the metadata inherited from the naming input
-    block_count: int = KREA2_BLOCKS
+    block_count: int | None = None     # None: from the checkpoint, else from the LoRA names (Krea 2 28, MOSS-Image 42)
     checkpoint: str | None = None      # optional checkpoint whose keys resolve module names
 
     def to_dict(self):
@@ -74,9 +75,9 @@ class LoraMergeOptions:
         return o
 
 
-def krea2_name_dictionary() -> dict:
-    """canon -> bare Krea 2 module name, from the official bf16 header."""
-    h = load_reference_header("bf16")
+def name_dictionary(family: str = "krea2") -> dict:
+    """canon -> bare module name of one architecture, from its official bf16 header."""
+    h = load_reference_header("bf16", family)
     out = {}
     for k in h:
         if k != "__metadata__" and k.endswith(".weight"):
@@ -85,16 +86,31 @@ def krea2_name_dictionary() -> dict:
     return out
 
 
+def krea2_name_dictionary() -> dict:
+    """canon -> bare Krea 2 module name, from the official bf16 header."""
+    return name_dictionary("krea2")
+
+
+def run_profile(sources: list, checkpoint: str | None = None) -> tuple[ArchProfile, dict | None]:
+    """(architecture, checkpoint key infos or None) of a LoRA run: the checkpoint decides when there is one."""
+    infos = None
+    if checkpoint:
+        with TensorReader(checkpoint) as r:
+            infos = dict(r.infos)
+    names = [m.name for s in sources for m in s.file.modules.values()]
+    return profile_for(infos, names), infos
+
+
 def module_names(sources: list, checkpoint: str | None = None) -> dict:
     """canon -> bare module name for every module of the sources."""
     names = {}
-    if checkpoint:
-        with TensorReader(checkpoint) as r:
-            for k in r.infos:
-                if k.endswith(".weight"):
-                    m = ckpt_module(k)[0]
-                    names[canon(m)] = m
-    dictionary = krea2_name_dictionary()
+    profile, infos = run_profile(sources, checkpoint)
+    if infos is not None:
+        for k in infos:
+            if k.endswith(".weight"):
+                m = ckpt_module(k)[0]
+                names[canon(m)] = m
+    dictionary = name_dictionary(profile.family)
     for s in sources:
         for c, m in s.file.modules.items():
             if c in names:
@@ -107,11 +123,25 @@ def module_names(sources: list, checkpoint: str | None = None) -> dict:
     return names
 
 
+def output_entries(naming: str, name: str, m_ref) -> list:
+    """[(down key, up key, alpha key, output rows or None)] of one module. A q/k/v module folded out of a file
+    whose own naming is asked for is written back as its three parts: each keeps the full down and its own
+    third of the up rows, which is exact for any merged qkv delta. Every other case is one fused entry."""
+    if naming == "input" and m_ref is not None and m_ref.parts:
+        out = []
+        n = m_ref.out_features // 3
+        for p, row, _letter in m_ref.parts:
+            out.append((p.name + p.suffix["down"], p.name + p.suffix["up"], p.name + ".alpha", (row, row + n)))
+        return out
+    kd, ku, ka = output_keys(naming, name, m_ref, None)
+    return [(kd, ku, ka, None)]
+
+
 def output_keys(naming: str, name: str, m_ref, suffix_ref: dict | None) -> tuple[str, str, str]:
     if naming == "kohya":
         base = "lora_unet_" + name.replace(".", "_")
         return base + ".lora_down.weight", base + ".lora_up.weight", base + ".alpha"
-    if naming == "input" and m_ref is not None and m_ref.kind == "lora":
+    if naming == "input" and m_ref is not None and m_ref.kind == "lora" and not m_ref.parts:
         return (m_ref.name + m_ref.suffix["down"], m_ref.name + m_ref.suffix["up"], m_ref.name + ".alpha")
     base = "diffusion_model." + name
     return base + ".lora_down.weight", base + ".lora_up.weight", base + ".alpha"
@@ -174,7 +204,24 @@ class LoraMergeResult:
     size_bytes: int = 0
 
 
-def open_sources(inputs: list[LoraInput], average: bool, block_count: int) -> list[LoraSource]:
+def open_sources(inputs: list[LoraInput], average: bool, block_count: int | None = None,
+                 checkpoint: str | None = None) -> list[LoraSource]:
+    """Opens the inputs. The block count of the shaping masks is the explicit one, else the checkpoint's, else
+    the one of the architecture the LoRA names belong to."""
+    sources = _open_sources(inputs, average)
+    try:
+        profile, infos = run_profile(sources, checkpoint)
+        n = resolve_block_count(block_count, profile, infos)
+    except BaseException:
+        for s in sources:
+            s.file.close()
+        raise
+    for s in sources:
+        s.block_count = n
+    return sources
+
+
+def _open_sources(inputs: list[LoraInput], average: bool) -> list[LoraSource]:
     strengths = [i.strength for i in inputs]
     if average:
         s = sum(strengths)
@@ -183,8 +230,7 @@ def open_sources(inputs: list[LoraInput], average: bool, block_count: int) -> li
     sources = []
     for inp, st in zip(inputs, strengths):
         lf = LoraFile(inp.path)
-        sources.append(LoraSource(lf, strength=st, shaping=inp.shaping, block_count=block_count,
-                                  label=os.path.basename(inp.path)))
+        sources.append(LoraSource(lf, strength=st, shaping=inp.shaping, label=os.path.basename(inp.path)))
     return sources
 
 
@@ -203,7 +249,7 @@ def select_modules(sources: list, mode: str) -> tuple[list, list]:
 
 def analyze_lora_merge(inputs: list[LoraInput], opts: LoraMergeOptions, use_gpu=True, progress=None, cancel=None) -> AnalysisReport:
     device = pick_device(use_gpu)
-    sources = open_sources(inputs, opts.average, opts.block_count)
+    sources = open_sources(inputs, opts.average, opts.block_count, opts.checkpoint)
     try:
         chosen, dropped = select_modules(sources, opts.modules)
         names = module_names(sources, opts.checkpoint)
@@ -231,7 +277,7 @@ def merge_loras(inputs: list[LoraInput], out_path: str, opts: LoraMergeOptions, 
             raise ValueError("the output path is one of the input files")
     device = pick_device(use_gpu)
     t0 = time.time()
-    sources = open_sources(inputs, opts.average, opts.block_count)
+    sources = open_sources(inputs, opts.average, opts.block_count, opts.checkpoint)
     try:
         chosen, dropped = select_modules(sources, opts.modules)
         if not chosen:
@@ -317,22 +363,22 @@ def merge_loras(inputs: list[LoraInput], out_path: str, opts: LoraMergeOptions, 
         keys_out = {}
         for c in written:
             m_ref = ref_src.file.modules.get(c)
-            kd, ku, ka = output_keys(opts.naming, names[c], m_ref, None)
             down, up, _ = results[c]
-            keys_out[c] = (kd, ku, ka)
-            writer.add(kd, tag, down.shape)
-            writer.add(ku, tag, up.shape)
-            if opts.write_alpha:
-                writer.add(ka, "F32", [])
+            keys_out[c] = output_entries(opts.naming, names[c], m_ref)
+            for kd, ku, ka, rows in keys_out[c]:
+                writer.add(kd, tag, down.shape)
+                writer.add(ku, tag, [rows[1] - rows[0], up.shape[1]] if rows else up.shape)
+                if opts.write_alpha:
+                    writer.add(ka, "F32", [])
         writer.begin()
         try:
             for c in written:
-                kd, ku, ka = keys_out[c]
                 down, up, _ = results[c]
-                writer.write(kd, down.to(tdt))
-                writer.write(ku, up.to(tdt))
-                if opts.write_alpha:
-                    writer.write(ka, torch.tensor(float(down.shape[0]), dtype=torch.float32))
+                for kd, ku, ka, rows in keys_out[c]:
+                    writer.write(kd, down.to(tdt))
+                    writer.write(ku, (up[rows[0]:rows[1]] if rows else up).contiguous().to(tdt))
+                    if opts.write_alpha:
+                        writer.write(ka, torch.tensor(float(down.shape[0]), dtype=torch.float32))
             writer.close()
         except BaseException:
             writer.abort()

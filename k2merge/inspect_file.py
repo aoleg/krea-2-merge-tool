@@ -5,7 +5,7 @@ import json
 import os
 
 from .formats import FileFormat
-from .keys import block_count, is_krea2
+from .keys import block_count, block_index_any, detect_family, is_krea2, profile_from_modules
 from .lora import LoraFile, LoraFormatError
 from .st_io import TensorReader, SafetensorsError
 
@@ -48,9 +48,12 @@ def inspect_path(path: str) -> dict:
                 info["kinds"] = lf.kind_counts()
                 info["ranks"] = lf.ranks()
                 lines.append(f"LoRA ({lf.summary()})")
-                blocks = {b for b in (__import__('k2merge.keys', fromlist=['block_index_any']).block_index_any(m.name) for m in lf.modules.values()) if b is not None}
+                prof = profile_from_modules(m.name for m in lf.modules.values())
+                info["family"] = prof.family
+                blocks = {b for b in (block_index_any(m.name) for m in lf.modules.values()) if b is not None}
                 if blocks:
-                    lines.append(f"blocks targeted: {min(blocks)}-{max(blocks)} ({len(blocks)} blocks)")
+                    lines.append(f"{prof.label} LoRA; blocks targeted: {min(blocks)}-{max(blocks)} "
+                                 f"({len(blocks)} of {prof.blocks} blocks)")
                 if lf.unparsed:
                     lines.append(f"{len(lf.unparsed)} tensor(s) not recognized, e.g. {lf.unparsed[:2]}")
                 meta_keys = [k for k in lf.metadata if not k.startswith("ss_")]
@@ -67,11 +70,14 @@ def inspect_path(path: str) -> dict:
             info["layouts"] = fmt.layout_counts()
             info["dtypes"] = fmt.dtype_counts()
             info["prefix"] = fmt.prefix
+            prof = detect_family(keys)
             info["krea2"] = is_krea2(keys)
+            info["family"] = prof.family if prof else None
             info["blocks"] = block_count(keys)
             lines.append(f"checkpoint: {fmt.summary()}")
             lines.append(f"dtypes: {fmt.dtype_counts()}")
-            lines.append(f"key prefix: {fmt.prefix or '(none)'}; Krea 2 layout: {'yes' if info['krea2'] else 'no'}; blocks: {info['blocks']}")
+            lines.append(f"key prefix: {fmt.prefix or '(none)'}; architecture: {prof.label if prof else 'unknown'}; "
+                         f"blocks: {info['blocks']}")
             if fmt.quant:
                 fpmm = sum(1 for s in fmt.quant.values() if s.full_precision_mm)
                 lines.append(f"quantized layers: {len(fmt.quant)}" + (f", {fpmm} with full precision matmul" if fpmm else ""))

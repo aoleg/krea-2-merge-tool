@@ -150,9 +150,9 @@ MODELSPEC_PREFIX = "modelspec."
 # (field, label, required by the standard, hint)
 MODELSPEC_FIELDS = (
     ("title", "title", True, "the name a model browser shows"),
-    ("architecture", "architecture", True, "Krea-2 for a checkpoint, Krea-2/lora for a LoRA"),
+    ("architecture", "architecture", True, "Krea-2 for a checkpoint, Krea-2/lora for a LoRA (MOSS-Image, MOSS-Image/lora)"),
     ("implementation", "implementation", True, ""),
-    ("resolution", "resolution", True, "Krea 2 is native at 1024x1024"),
+    ("resolution", "resolution", True, "Krea 2 and MOSS-Image are native at 1024x1024"),
     ("author", "author", False, ""),
     ("description", "description", False, ""),
     ("license", "license", False, ""),
@@ -171,13 +171,18 @@ MODELSPEC_KEYS = tuple(MODELSPEC_PREFIX + f for f, _l, _r, _h in MODELSPEC_FIELD
 MODELSPEC_DEFAULTS = {"implementation": "https://github.com/krea-ai/krea-2", "resolution": "1024x1024"}
 
 
-def architecture_default(is_lora: bool) -> str:
-    return "Krea-2/lora" if is_lora else "Krea-2"
+def architecture_default(is_lora: bool, family: str | None = None) -> str:
+    from .keys import get_profile
+    arch = get_profile(family).modelspec_arch
+    return arch + "/lora" if is_lora else arch
 
 
-def modelspec_defaults(is_lora: bool) -> dict:
-    """What to offer for the fields the standard calls required, when the file carries nothing."""
-    return dict(MODELSPEC_DEFAULTS, architecture=architecture_default(is_lora))
+def modelspec_defaults(is_lora: bool, family: str | None = None) -> dict:
+    """What to offer for the fields the standard calls required, when the file carries nothing.
+    family: the architecture of the file (Krea 2 when unknown)."""
+    from .keys import get_profile
+    return dict(MODELSPEC_DEFAULTS, implementation=get_profile(family).implementation,
+                architecture=architecture_default(is_lora, family))
 
 
 def read_modelspec(meta: dict) -> dict:

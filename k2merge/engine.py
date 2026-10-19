@@ -20,8 +20,8 @@ import torch
 from . import TOOL_NAME, __version__
 from .formats import (FLOAT_TAGS, FileFormat, FormatError, OutputSpec, fp16_overflow,
                       plan_plain_tensor, plan_weight, quantize_fp8_plain, quantize_fp8_scaled,
-                      quantize_int8_convrot)
-from .keys import ckpt_module
+                      quantize_int8_convrot, resolve_int8_clip)
+from .keys import ArchProfile, ckpt_module, detect_family
 from .st_io import DTYPES, TensorReader, StreamWriter, same_file
 
 
@@ -48,7 +48,8 @@ class Plan:
     metadata: dict = field(default_factory=dict)
     quant_layers: dict = field(default_factory=dict)   # module -> layer conf (fp8 scaled metadata)
     notes: list[str] = field(default_factory=list)
-    int8_clip: str = "mse"                             # int8 scale choice: mse (official) | absmax
+    int8_clip: str = "mse"                             # int8 scale choice: mse (official Krea 2) | absmax (official MOSS-Image)
+    profile: ArchProfile | None = None                 # architecture of the primary file, None when unknown
 
     def add(self, item: PlanItem):
         self.items.append(item)
@@ -70,9 +71,9 @@ def pick_device(prefer_gpu: bool = True) -> torch.device:
 def plan_weight_items(plan: Plan, name: str, module: str, shape, src_tag: str, src_layout: str,
                       out_format: str, passthrough: str, fp8_layer_set: str,
                       compute: Callable[[], torch.Tensor] | None, raw_reader: TensorReader | None,
-                      raw_fmt: FileFormat | None, touched: bool) -> None:
+                      raw_fmt: FileFormat | None, touched: bool, profile: ArchProfile | None = None) -> None:
     """Adds the items for one weight: raw copy when nothing changes, else compute + store."""
-    spec = plan_weight(module, shape, src_tag, src_layout, out_format, passthrough, fp8_layer_set)
+    spec = plan_weight(module, shape, src_tag, src_layout, out_format, passthrough, fp8_layer_set, profile)
     src_spec = raw_fmt.quant.get(name) if raw_fmt is not None else None
 
     # raw copy possible?  same storage kind and no arithmetic
@@ -125,15 +126,18 @@ def module_key(weight_key: str) -> str:
 def plan_from_primary(primary: FileFormat, out_format: str, passthrough: str = "official",
                       fp8_layer_set: str = "official",
                       compute_for: Callable[[str], Callable[[], torch.Tensor] | None] | None = None,
-                      touched_keys: set | None = None) -> Plan:
+                      touched_keys: set | None = None, profile: ArchProfile | None = None) -> Plan:
     """Plan an output that follows the primary file's key order.
 
     compute_for(key) returns a callable producing the fp32 value of a float
     tensor (after merging), or None when the tensor is untouched. For a plain
-    conversion compute_for is None.
+    conversion compute_for is None. profile: the architecture, detected from
+    the primary's keys when not given.
     """
     plan = Plan()
     reader = primary.reader
+    profile = profile or detect_family(reader.infos)
+    plan.profile = profile
     touched_keys = touched_keys or set()
     for key in reader.names:
         if primary.is_consumed(key):
@@ -151,16 +155,48 @@ def plan_from_primary(primary: FileFormat, out_format: str, passthrough: str = "
                 comp = (lambda k=key: primary.read_fp32(k, device=None))
         if is_weight and (primary.is_quantized(key) or (tag in FLOAT_TAGS and len(shape) == 2)):
             plan_weight_items(plan, key, module, shape, tag, layout, out_format, passthrough,
-                              fp8_layer_set, comp, reader, primary, touched)
+                              fp8_layer_set, comp, reader, primary, touched, profile)
         elif tag in FLOAT_TAGS:
-            out_tag = plan_plain_tensor(ckpt_module(key)[0] + suffix, tag, out_format, passthrough)
+            out_tag = plan_plain_tensor(ckpt_module(key)[0] + suffix, tag, out_format, passthrough, profile)
             if not touched and out_tag == tag:
                 plan.add(PlanItem(key, tag, shape, "raw", raw_from=(reader, key), module=module))
             else:
                 plan.add(PlanItem(key, out_tag, shape, "plain", compute=comp, module=module, touched=touched))
         else:
             plan.add(PlanItem(key, tag, shape, "raw", raw_from=(reader, key), module=module))
+    _plan_attention_config(plan, primary.prefix)
     return plan
+
+
+def _plan_attention_config(plan: Plan, prefix: str) -> None:
+    """MOSS-Image: the official int8 file carries layers.N.comfy_attention.config (U8, the descriptor bytes) in
+    every layer with quantized projections; it is written after that layer's last quantized weight."""
+    prof = plan.profile
+    if prof is None or prof.attention_config is None:
+        return
+    last: dict[int, int] = {}
+    for i, it in enumerate(plan.items):
+        if it.spec is not None and it.spec.kind == "int8_convrot" and it.name.endswith(".weight"):
+            n = prof.layer_of_int8(it.module)
+            if n is not None:
+                last[n] = i
+    if not last:
+        return
+    # the descriptor item of a weight follows it (weight, scale, comfy_quant): insert after that group
+    inserts = {}
+    for n, i in last.items():
+        j = i
+        while j + 1 < len(plan.items) and plan.items[j + 1].kind in ("scale", "descriptor", "raw")                 and plan.items[j + 1].name.startswith(module_key(plan.items[i].name) + "."):
+            j += 1
+        inserts[j] = n
+    items = []
+    desc = prof.attention_config
+    for j, it in enumerate(plan.items):
+        items.append(it)
+        if j in inserts:
+            items.append(PlanItem(f"{prefix}layers.{inserts[j]}.comfy_attention.config", "U8", [len(desc)], "descriptor",
+                                  compute=lambda d=desc: d, module=f"layers.{inserts[j]}.comfy_attention"))
+    plan.items = items
 
 
 # ----------------------------------------------------------------------------- execution
@@ -393,14 +429,14 @@ def verify_output(out_path: str, plan: Plan, kept: dict, device: torch.device, l
 def convert_checkpoint(src: str, dst: str, out_format: str, passthrough: str = "official",
                        fp8_layer_set: str = "official", keep_metadata: bool = True,
                        recipe: dict | None = None, use_gpu: bool = True,
-                       progress=None, cancel=None, log=None, int8_clip: str = "mse",
+                       progress=None, cancel=None, log=None, int8_clip: str = "auto",
                        redact_inherited: bool = True) -> RunResult:
-    """Single input, no arithmetic: format conversion."""
+    """Single input, no arithmetic: format conversion. int8_clip auto: the architecture's official rule."""
     device = pick_device(use_gpu)
     with TensorReader(src) as reader:
         fmt = FileFormat(reader)
         plan = plan_from_primary(fmt, out_format, passthrough, fp8_layer_set)
-        plan.int8_clip = int8_clip
+        plan.int8_clip = resolve_int8_clip(int8_clip, plan.profile)
         rec = recipe if recipe is not None else {
             "function": "convert", "inputs": [{"role": "A", "file": os.path.basename(src)}],
             "output_format": out_format, "passthrough": passthrough, "fp8_layer_set": fp8_layer_set,

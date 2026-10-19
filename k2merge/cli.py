@@ -9,7 +9,7 @@ import traceback
 
 from . import __version__
 from .blocks import BLOCK_PRESETS, MODIFIERS, Shaping
-from .formats import INT8_CLIPS, OUTPUT_FORMATS, PASSTHROUGH
+from .formats import INT8_CLIP_CHOICES, OUTPUT_FORMATS, PASSTHROUGH
 from .methods import METHODS, METHOD_LABELS
 from .advisor import GOAL_ORDER
 from .ckpt_merge import VECTOR_SOURCES
@@ -76,7 +76,7 @@ def _progress_printer():
 
 
 def build_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(prog="krea2_merge_tool", description="Krea 2 merge tool: LoRA merge, analysis, extraction, checkpoint merge and conversion")
+    ap = argparse.ArgumentParser(prog="krea2_merge_tool", description="Krea 2 merge tool (Krea 2 and MOSS-Image): LoRA merge, analysis, extraction, checkpoint merge and conversion")
     ap.add_argument("--version", action="version", version=__version__)
     ap.add_argument("--gui", action="store_true", help="start the GUI (default when no command is given)")
     ap.add_argument("--theme", default=None, choices=["light", "dark"], help="GUI theme (default: the last one used)")
@@ -130,7 +130,8 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--format", default="bf16", choices=OUTPUT_FORMATS)
     c.add_argument("--passthrough", default="official", choices=PASSTHROUGH)
     c.add_argument("--fp8-layers", default="official", choices=["official", "blocks"])
-    c.add_argument("--int8-clip", default="mse", choices=INT8_CLIPS, help="int8 scale: mse reproduces the official file, absmax is plain")
+    c.add_argument("--int8-clip", default="auto", choices=INT8_CLIP_CHOICES,
+                   help="int8 scale: auto takes the rule that reproduces the official file (Krea 2 mse, MOSS-Image absmax)")
 
     lm = sub.add_parser("lora-merge", help="merge LoRA / LoKr files into one LoRA")
     lm.add_argument("inputs", nargs="+", help="FILE|STRENGTH|SHAPING (SHAPING = PRESET:MODIFIER:CONTRAST[:BOOST][@NONBLOCK])")
@@ -176,7 +177,7 @@ def build_parser() -> argparse.ArgumentParser:
     cm.add_argument("--format", default="bf16", choices=OUTPUT_FORMATS)
     cm.add_argument("--passthrough", default="official", choices=PASSTHROUGH)
     cm.add_argument("--fp8-layers", default="official", choices=["official", "blocks"])
-    cm.add_argument("--int8-clip", default="mse", choices=INT8_CLIPS)
+    cm.add_argument("--int8-clip", default="auto", choices=INT8_CLIP_CHOICES)
     cm.add_argument("--vectors-from", default="merge", choices=VECTOR_SOURCES,
                     help="norm scales, modulation vectors and biases: merged like the rest (merge), or copied from A, B or C")
     cm.add_argument("--prefix-weight", action="append", default=[], metavar="PREFIX=FACTOR",
@@ -329,7 +330,8 @@ def _meta_command(args, prog, log) -> int:
         vals = {f: (getattr(args, f) if getattr(args, f) is not None else cur[f]) for f, _l, _r, _h in MODELSPEC_FIELDS}
         if args.compute_hash:
             vals["hash_sha256"] = data_sha256(args.file, progress=prog)
-        for k, v in modelspec_defaults(inspect_path(args.file).get("kind") == "lora").items():
+        info = inspect_path(args.file)
+        for k, v in modelspec_defaults(info.get("kind") == "lora", info.get("family")).items():
             vals[k] = vals.get(k) or v
         written, how = put(args.file, set_modelspec(meta, vals), args.out)
         print(f"\n{written} ({how})")

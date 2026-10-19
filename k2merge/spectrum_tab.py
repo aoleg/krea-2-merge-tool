@@ -19,7 +19,8 @@ SPECTRUM_FILES = [("saved analysis", "*.spectrum.json"), ("all files", "*.*")]
 VIEWS = (("layer", "Per layer spectrum"), ("all", "All layers"), ("map", "Layer map"), ("compare", "Compare runs"))
 MAP_VALUES = (("rel_change", "relative change"), ("effective_rank", "effective rank"), ("rank90", "rank at 90% (raw)"),
               ("rank90_dn", "rank at 90% (denoised)"), ("energy_above_noise", "energy above the noise edge"))
-LEAF_ORDER = ("attn.wq", "attn.wk", "attn.wv", "attn.gate", "attn.wo", "mlp.gate", "mlp.up", "mlp.down")
+LEAF_ORDER = ("attn.wq", "attn.wk", "attn.wv", "attn.gate", "attn.wo", "mlp.gate", "mlp.up", "mlp.down",
+              "proj.qkv", "proj.o", "proj.ffn_up_gate", "proj.ffn_down")     # Krea 2, then MOSS-Image
 HELP = """What to look for
 
 Knee or no knee. A few large singular values, a steep drop and a flat tail mean a low intrinsic rank; truncating at the knee loses little. A slow decay with no knee means the change is diffuse: any truncation drops real signal, and the honest options are a much higher rank, a checkpoint merge, or a LoRA that carries only part of the change.
@@ -40,9 +41,10 @@ Comparing two runs. The same delta norm with a flatter spectrum means the more d
 
 
 def _leaf(name: str) -> str:
-    """'blocks.3.attn.wq' -> 'attn.wq'; 'blocks.3.attn.qknorm.qnorm.scale' -> 'attn.qknorm.qnorm.scale'."""
+    """'blocks.3.attn.wq' -> 'attn.wq'; 'blocks.3.attn.qknorm.qnorm.scale' -> 'attn.qknorm.qnorm.scale';
+    'layers.3.proj.qkv' -> 'proj.qkv' (MOSS-Image)."""
     parts = name.split(".")
-    return ".".join(parts[2:]) if len(parts) > 2 and parts[0] == "blocks" else name
+    return ".".join(parts[2:]) if len(parts) > 2 and parts[0] in ("blocks", "layers") else name
 
 
 def _fmt(v, pct=False, digits=3) -> str:

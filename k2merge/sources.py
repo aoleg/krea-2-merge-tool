@@ -13,7 +13,7 @@ import torch
 
 from .blocks import Shaping
 from .formats import FileFormat
-from .keys import KREA2_BLOCKS, block_index_any, canon, ckpt_module
+from .keys import block_index_any, canon, ckpt_module, detect_family, profile_from_modules, KREA2
 from .lora import LoraFile, LoraModule
 
 
@@ -22,7 +22,7 @@ class LoraSource:
     file: LoraFile
     strength: float = 1.0
     shaping: Shaping = field(default_factory=Shaping)
-    block_count: int = KREA2_BLOCKS
+    block_count: int | None = None     # None: the block count of the architecture the LoRA's names belong to
     label: str = ""
     # canon -> checkpoint module name (bare); set by resolution, used for block lookup
     module_names: dict = field(default_factory=dict)
@@ -37,6 +37,8 @@ class LoraSource:
         """strength times the block factor of module c."""
         name = self.module_names.get(c, self.file.modules[c].name)
         b = block_index_any(name)
+        if self.block_count is None:
+            self.block_count = profile_from_modules(m.name for m in self.file.modules.values()).blocks
         return self.strength * self.shaping.factor_for(b, self.block_count, name)
 
     def is_exact(self, c: str) -> bool:
@@ -59,11 +61,14 @@ class CheckpointDelta:
     base: FileFormat
     weight: float = 1.0
     shaping: Shaping = field(default_factory=Shaping)
-    block_count: int = KREA2_BLOCKS
+    block_count: int | None = None     # None: from the target checkpoint
     label: str = ""
     _mods: dict = field(default_factory=dict)
 
     def __post_init__(self):
+        if self.block_count is None:
+            keys = self.target.reader.infos
+            self.block_count = (detect_family(keys) or KREA2).block_count(keys) or KREA2.blocks
         tm = {canon(ckpt_module(k)[0]): k for k in self.target.reader.infos if k.endswith(".weight")}
         bm = {canon(ckpt_module(k)[0]): k for k in self.base.reader.infos if k.endswith(".weight")}
         self._mods = {c: (tm[c], bm[c]) for c in tm if c in bm}
