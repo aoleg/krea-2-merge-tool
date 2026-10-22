@@ -13,6 +13,8 @@ from .formats import INT8_CLIP_CHOICES, OUTPUT_FORMATS, PASSTHROUGH
 from .methods import METHODS, METHOD_LABELS
 from .advisor import GOAL_ORDER
 from .ckpt_merge import VECTOR_SOURCES
+from .extract import FILTER_PRESETS
+from .extract_lokr import W1_SCALES
 from .meta import MODELSPEC_FIELDS
 
 
@@ -149,17 +151,26 @@ def build_parser() -> argparse.ArgumentParser:
     _analysis_args(lm)
     lm.add_argument("--plan", action="store_true")
 
-    ex = sub.add_parser("extract", help="extract a LoRA from two checkpoints")
+    ex = sub.add_parser("extract", help="extract a LoRA (or with --lokr a LoKr) from two checkpoints")
     ex.add_argument("base")
     ex.add_argument("target")
     ex.add_argument("-o", "--output", required=True)
-    ex.add_argument("--rank", type=int, default=32)
-    ex.add_argument("--filter", default="all", choices=["all", "attn", "blocks", "custom"])
+    ex.add_argument("--rank", type=int, default=None, help="LoRA rank (default 32)")
+    ex.add_argument("--filter", default=None, choices=list(FILTER_PRESETS),
+                    help="modules: LoRA default all, LoKr default trainer (what ai-toolkit trains)")
     ex.add_argument("--include", default="")
     ex.add_argument("--exclude", default="")
-    ex.add_argument("--method", default="randomized", choices=["randomized", "full"])
-    ex.add_argument("--naming", default="comfy", choices=["comfy", "kohya"])
-    ex.add_argument("--dtype", default="fp16", choices=["fp16", "bf16", "fp32"])
+    ex.add_argument("--method", default=None, choices=["randomized", "full"], help="LoRA SVD (default randomized)")
+    ex.add_argument("--naming", default=None, choices=["comfy", "kohya"], help="LoRA key naming (default comfy)")
+    ex.add_argument("--dtype", default=None, choices=["fp16", "bf16", "fp32"], help="default: LoRA fp16, LoKr fp32")
+    ex.add_argument("--lokr", action="store_true", help="extract a full rank LoKr (nearest Kronecker product per module)")
+    ex.add_argument("--factor", type=int, default=None, help="LoKr factor, 2 to 32 (default 4): w1 is factor x factor")
+    ex.add_argument("--template", default=None, metavar="FILE|none",
+                    help="LoKr template: a LoKr your trainer wrote (names, modules, alpha, format metadata); "
+                         "default the built-in ai-toolkit layout, none = the generic layout")
+    ex.add_argument("--w1-scale", default=None, choices=list(W1_SCALES),
+                    help="LoKr: how the product splits between w1 and w2 (default init: w1 at the size of the "
+                         "trainer's random start)")
     ex.add_argument("--analyze", action="store_true", help="print the rank / energy report and exit")
     _analysis_args(ex)
     ex.add_argument("--null-spectrum", action="store_true", help="with --analyze: also store the spectrum of the modeled noise")
@@ -183,6 +194,9 @@ def build_parser() -> argparse.ArgumentParser:
     cm.add_argument("--prefix-weight", action="append", default=[], metavar="PREFIX=FACTOR",
                     help="expert: factor on B's weight for modules whose name starts with PREFIX "
                          "(e.g. txtfusion.=0), replacing the block or non block factor; repeatable")
+    cm.add_argument("--strict-loras", action="store_true",
+                    help="stop when a LoRA tensor does not land: not recognized, not matched or of another shape "
+                         "(default: a warning; a LoRA that matches nothing always stops the merge)")
     cm.add_argument("--as-lora", type=int, default=None, metavar="RANK", help="write the result as a LoRA of this rank")
     cm.add_argument("--report", action="store_true", help="print the pre merge report and exit")
     cm.add_argument("--plan", action="store_true")
@@ -213,6 +227,34 @@ def _analysis_args(p):
     p.add_argument("--energy", type=float, default=0.99, help="energy target of the printed rank plan (default 0.99)")
     p.add_argument("--criterion", default="weighted", choices=["weighted", "per_module"])
     p.add_argument("--raw-plan", action="store_true", help="rank plan from the raw spectrum instead of the denoised one")
+
+
+def _extract_lokr_command(args, ap, use_gpu, prog, log) -> int:
+    from .extract_lokr import LokrExtractOptions, analyze_extract_lokr, extract_lokr, plan_text
+    lora_only = [f for f, given in (("--rank", args.rank is not None), ("--method", args.method is not None),
+                                    ("--naming", args.naming is not None), ("--null-spectrum", args.null_spectrum),
+                                    ("--spectrum", args.spectrum is not None), ("--raw-plan", args.raw_plan),
+                                    ("--energy", args.energy != 0.99), ("--criterion", args.criterion != "weighted"))
+                 if given]
+    if lora_only:
+        ap.error(f"{', '.join(lora_only)}: LoRA options, not used by --lokr")
+    opts = LokrExtractOptions(factor=4 if args.factor is None else args.factor, filter=args.filter or "trainer",
+                              include=args.include, exclude=args.exclude, dtype=args.dtype or "fp32",
+                              template=args.template or "", w1_scale=args.w1_scale or "init")
+    try:
+        opts.validate()
+    except ValueError as e:
+        ap.error(str(e))
+    if args.plan:
+        print(plan_text(args.base, args.target, opts))
+        return 0
+    if args.analyze:
+        rep = analyze_extract_lokr(args.base, args.target, opts, use_gpu, progress=prog)
+        print("\n" + rep.text())
+        return 0
+    res = extract_lokr(args.base, args.target, args.output, opts, use_gpu, progress=prog, log=log)
+    print("\n" + res.summary())
+    return 0
 
 
 def _finish_analysis(rep, args) -> int:
@@ -432,10 +474,17 @@ def main(argv=None) -> int:
             print(f"\nwrote {res.path}: {res.modules} modules, rank {res.rank_min}-{res.rank_max}, "
                   f"energy kept >= {res.kept_min * 100:.2f}%, {len(res.dropped)} dropped, {res.size_bytes / 1e6:.1f} MB")
             return 0
+        if args.cmd == "extract" and args.lokr:
+            return _extract_lokr_command(args, ap, use_gpu, prog, log)
         if args.cmd == "extract":
             from .extract import ExtractOptions, analyze_extract, extract_lora
-            opts = ExtractOptions(rank=args.rank, filter=args.filter, include=args.include, exclude=args.exclude,
-                                  method=args.method, naming=args.naming, dtype=args.dtype)
+            lokr_only = [f for f, v in (("--factor", args.factor), ("--template", args.template),
+                                        ("--w1-scale", args.w1_scale)) if v is not None]
+            if lokr_only:
+                ap.error(f"{', '.join(lokr_only)} need --lokr")
+            opts = ExtractOptions(rank=32 if args.rank is None else args.rank, filter=args.filter or "all",
+                                  include=args.include, exclude=args.exclude, method=args.method or "randomized",
+                                  naming=args.naming or "comfy", dtype=args.dtype or "fp16")
             if args.plan:
                 from .plan import plan_extract
                 print(plan_extract(args.base, args.target, opts))
@@ -465,7 +514,7 @@ def main(argv=None) -> int:
                 ap.error("at most 4 LoRAs")
             opts = CkptMergeOptions(method=args.method, output_format=args.format, passthrough=args.passthrough,
                                     fp8_layer_set=args.fp8_layers, int8_clip=args.int8_clip, lora_mode=args.lora_mode, use_gpu=use_gpu,
-                                    vectors_from=args.vectors_from)
+                                    vectors_from=args.vectors_from, strict_loras=args.strict_loras)
             for p in args.param:
                 k, _, v = p.partition("=")
                 opts.params[k] = (v.lower() == "true") if k == "dare_ties" else (int(v) if k == "seed" else float(v))

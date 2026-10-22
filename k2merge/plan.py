@@ -147,6 +147,12 @@ def plan_recipe(r: dict, base_dir: str | None = None) -> str:
         return plan_lora_merge(inputs, LoraMergeOptions.from_dict(r.get("options")))
     if fn == "extract":
         return plan_extract(_resolve(r["base"], base_dir), _resolve(r["target"], base_dir), ExtractOptions.from_dict(r.get("options")))
+    if fn == "extract_lokr":
+        from .extract_lokr import LokrExtractOptions, plan_text
+        o = LokrExtractOptions.from_dict(r.get("options"))
+        if o.template and o.template.lower() != "none":
+            o.template = _resolve(o.template, base_dir)
+        return plan_text(_resolve(r["base"], base_dir), _resolve(r["target"], base_dir), o)
     if fn == "ckpt_merge":
         A = CkptInput.from_dict(r["A"])
         B = CkptInput.from_dict(r.get("B"))

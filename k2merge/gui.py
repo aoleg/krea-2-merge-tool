@@ -25,7 +25,8 @@ from . import __version__
 from .blocks import BLOCK_PRESETS, MODIFIERS, RECIPES, RECIPE_LABELS, Shaping
 from .ckpt_merge import VECTOR_SOURCES, CkptInput, CkptMergeOptions
 from .engine import Cancelled
-from .extract import ExtractOptions
+from .extract import FILTER_PRESETS, ExtractOptions
+from .extract_lokr import LokrExtractOptions
 from .formats import INT8_CLIP_CHOICES, OUTPUT_FORMATS, PASSTHROUGH
 from .keys import KREA2_BLOCKS, blocks_of_keys
 from .lora_merge import LoraInput, LoraMergeOptions
@@ -832,30 +833,51 @@ class LoraMergeTab(ttk.Frame):
 
 
 class ExtractTab(ttk.Frame):
+    """LoRA or LoKr extraction. The radio row picks the kind; each kind's own rows sit in their own frames and are
+    hidden with grid_remove, so the other kind's values survive a switch and only one set of controls shows."""
+
+    MODE_HINTS = {"lora": "",
+                  "lokr": "full rank LoKr, nearest Kronecker product per module; Analyze reports the share it captures"}
+
     def __init__(self, master, app):
         super().__init__(master, padding=px(8))
         self.app = app
         card = ttk.LabelFrame(self, text="Checkpoints", padding=px(6))
         card.pack(fill="x", pady=px(4))
-        self.base = FileSlot(card, app, "base", hint="the model the LoRA will be applied to")
+        self.base = FileSlot(card, app, "base", hint="the model the LoRA or LoKr will be applied to")
         self.base.pack(fill="x")
-        self.target = FileSlot(card, app, "target", hint="the fine tuned model; the LoRA approximates target minus base")
+        self.target = FileSlot(card, app, "target", hint="the fine tuned model; the extraction approximates target minus base")
         self.target.pack(fill="x")
 
         opts = ttk.LabelFrame(self, text="Extraction", padding=px(6))
         opts.pack(fill="x", pady=px(4))
-        rk = ttk.Frame(opts)
-        ttk.Label(opts, text="rank", width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
-        rk.grid(row=0, column=1, columnspan=2, sticky="w")
+        # row 0: what to extract
+        mr = ttk.Frame(opts)
+        mr.grid(row=0, column=0, columnspan=3, sticky="ew")
+        self.mode = tk.StringVar(value="lora")
+        ttk.Label(mr, text="extract as", width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
+        ttk.Radiobutton(mr, text="LoRA", value="lora", variable=self.mode, command=self._mode_changed).grid(row=0, column=1, sticky="w", **PAD)
+        ttk.Radiobutton(mr, text="LoKr", value="lokr", variable=self.mode, command=self._mode_changed).grid(row=0, column=2, sticky="w", **PAD)
+        self.mode_hint = ttk.Label(mr, text="", style="Hint.TLabel")
+        self.mode_hint.grid(row=0, column=3, sticky="w", padx=px(6))
+        # row 1: LoRA rank | LoKr factor
+        self.row_rank = ttk.Frame(opts)
+        self.row_rank.grid(row=1, column=0, columnspan=3, sticky="ew")
+        ttk.Label(self.row_rank, text="rank", width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
         self.rank = tk.StringVar(value="32")
-        ttk.Entry(rk, textvariable=self.rank, width=6, justify="right").pack(side="left", padx=px(6))
+        ttk.Entry(self.row_rank, textvariable=self.rank, width=6, justify="right").grid(row=0, column=1, sticky="w", **PAD)
         self.use_groups = tk.BooleanVar(value=False)
-        ttk.Checkbutton(rk, text="use the per group ranks from the analysis", variable=self.use_groups).pack(side="left", padx=px(12))
-        self.group_ranks: dict = {}
-        self.group_lbl = ttk.Label(opts, text="", style="Hint.TLabel")
-        self.group_lbl.grid(row=8, column=0, columnspan=3, sticky="w", padx=px(6))
-        self.filter = _labeled(opts, 1, "modules", lambda p: ttk.Combobox(p, values=["all", "attn", "blocks", "custom"], state="readonly", width=12),
-                               "all = every linear (264); attn = attention only (140); blocks = block linears (224); custom = regex")
+        ttk.Checkbutton(self.row_rank, text="use the per group ranks from the analysis",
+                        variable=self.use_groups).grid(row=0, column=2, sticky="w", padx=px(12))
+        self.row_factor = ttk.Frame(opts)
+        self.row_factor.grid(row=1, column=0, columnspan=3, sticky="ew")
+        self.factor = _labeled(self.row_factor, 0, "factor",
+                               lambda p: ttk.Combobox(p, values=["2", "4", "8", "16"], state="readonly", width=6),
+                               "w1 is factor x factor and w2 is full rank; a smaller factor gives a bigger w2")
+        self.factor.set("4")
+        # rows 2-3: modules, shared, and the custom regex pair
+        self.filter = _labeled(opts, 2, "modules", lambda p: ttk.Combobox(p, values=list(FILTER_PRESETS), state="readonly", width=12),
+                               "attn = attention; blocks = block linears; trainer = what ai-toolkit trains; custom = regex")
         self.filter.set("all")
         self.filter.bind("<<ComboboxSelected>>", lambda _e: self._filter_changed())
         self.custom = ttk.Frame(opts)
@@ -866,15 +888,28 @@ class ExtractTab(ttk.Frame):
         self.exclude = tk.StringVar()
         ttk.Entry(self.custom, textvariable=self.exclude, width=28).grid(row=1, column=1, sticky="w", **PAD)
         ttk.Label(self.custom, text="regular expressions on module names; include wins over exclude", style="Hint.TLabel").grid(row=0, column=2, rowspan=2, sticky="w", padx=px(6))
-        self.method = _labeled(opts, 3, "SVD", lambda p: ttk.Combobox(p, values=["randomized", "full"], state="readonly", width=12),
+        # row 4: LoRA SVD
+        self.row_svd = ttk.Frame(opts)
+        self.row_svd.grid(row=4, column=0, columnspan=3, sticky="ew")
+        self.method = _labeled(self.row_svd, 0, "SVD", lambda p: ttk.Combobox(p, values=["randomized", "full"], state="readonly", width=12),
                                "randomized is fast; full is exact and slower")
         self.method.set("randomized")
-        self.naming = _labeled(opts, 4, "naming", lambda p: ttk.Combobox(p, values=["comfy", "kohya"], state="readonly", width=12))
+        # row 5: LoRA naming | LoKr template
+        self.row_naming = ttk.Frame(opts)
+        self.row_naming.grid(row=5, column=0, columnspan=3, sticky="ew")
+        self.naming = _labeled(self.row_naming, 0, "naming", lambda p: ttk.Combobox(p, values=["comfy", "kohya"], state="readonly", width=12))
         self.naming.set("comfy")
-        self.dtype = _labeled(opts, 5, "dtype", lambda p: ttk.Combobox(p, values=["fp16", "bf16", "fp32"], state="readonly", width=12))
+        self.template = FileSlot(opts, app, "template",
+                                 hint="optional: a LoKr your trainer saved, for its key names, modules, alpha and metadata; "
+                                      "empty = the built-in ai-toolkit layout")
+        self.template.grid(row=5, column=0, columnspan=3, sticky="ew")
+        # row 6: dtype, shared, remembered per kind
+        self.dtype = _labeled(opts, 6, "dtype", lambda p: ttk.Combobox(p, values=["fp16", "bf16", "fp32"], state="readonly", width=12))
         self.dtype.set("fp16")
+        # row 7: LoRA rank planning
         an = ttk.Frame(opts)
-        an.grid(row=6, column=0, columnspan=3, sticky="ew")
+        an.grid(row=7, column=0, columnspan=3, sticky="ew")
+        self.row_analysis = an
         ttk.Label(an, text="energy target", width=LABEL_W).grid(row=0, column=0, sticky="w", **PAD)
         self.target_e = tk.StringVar(value="0.99")
         ttk.Combobox(an, textvariable=self.target_e, values=["0.9", "0.95", "0.99", "0.995"], width=6).grid(row=0, column=1, sticky="w", **PAD)
@@ -887,8 +922,12 @@ class ExtractTab(ttk.Frame):
         ttk.Label(an, text="Analyze reports the rank needed per group with a noise edge from the storage formats; denoised = plan from the "
                   "spectra above the edge; null spectrum = also compute the spectrum of the modeled noise (twice the SVD time)",
                   style="Hint.TLabel", wraplength=px(420), justify="left").grid(row=0, column=5, sticky="w", padx=px(6))
+        # row 8: output, row 9: LoRA group ranks
         self.out = FileSlot(opts, app, "output", save=True)
-        self.out.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(px(6), 0))
+        self.out.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(px(6), 0))
+        self.group_ranks: dict = {}
+        self.group_lbl = ttk.Label(opts, text="", style="Hint.TLabel")
+        self.group_lbl.grid(row=9, column=0, columnspan=3, sticky="w", padx=px(6))
         opts.columnconfigure(2, weight=1)
 
         btns = ttk.Frame(self)
@@ -898,15 +937,46 @@ class ExtractTab(ttk.Frame):
         ttk.Button(btns, text="Extract", style="Accent.TButton", command=self.run).pack(side="left", padx=px(6))
         ttk.Button(btns, text="Save recipe...", command=lambda: app.save_recipe(self)).pack(side="right", padx=px(6))
         ttk.Button(btns, text="Load recipe...", command=lambda: app.load_recipe(self)).pack(side="right", padx=px(6))
+
+        # filter and dtype are shared rows with a value per kind; the LoKr w1 scale has no widget (recipe and CLI)
+        self._per_mode = {"lora": {"filter": "all", "dtype": "fp16"}, "lokr": {"filter": "trainer", "dtype": "fp32"}}
+        self._shown = "lora"
+        self._w1_scale = "init"
+        self._mode_rows = {"lora": (self.row_rank, self.row_svd, self.row_naming, self.row_analysis, self.group_lbl),
+                           "lokr": (self.row_factor, self.template)}
+        self._mode_changed()
+
+    def is_lokr(self) -> bool:
+        return self.mode.get() == "lokr"
+
+    def _mode_changed(self):
+        new = self.mode.get()
+        if new != self._shown:
+            self._per_mode[self._shown] = {"filter": self.filter.get(), "dtype": self.dtype.get()}
+            self.filter.set(self._per_mode[new]["filter"])
+            self.dtype.set(self._per_mode[new]["dtype"])
+            self._shown = new
+        for mode, rows in self._mode_rows.items():
+            for w in rows:
+                if mode == new:
+                    w.grid()
+                else:
+                    w.grid_remove()
+        self.mode_hint.configure(text=self.MODE_HINTS[new])
         self._filter_changed()
 
     def _filter_changed(self):
         if self.filter.get() == "custom":
-            self.custom.grid(row=2, column=0, columnspan=3, sticky="ew")
+            self.custom.grid(row=3, column=0, columnspan=3, sticky="ew")
         else:
             self.custom.grid_forget()
 
-    def options(self) -> ExtractOptions:
+    def options(self):
+        if self.is_lokr():
+            f = self.factor.get().strip()
+            return LokrExtractOptions(factor=int(f) if f.isdigit() else 4, filter=self.filter.get(),
+                                      include=self.include.get().strip(), exclude=self.exclude.get().strip(),
+                                      dtype=self.dtype.get(), template=self.template.get(), w1_scale=self._w1_scale)
         return ExtractOptions(rank=int(self.rank.get()) if self.rank.get().strip().isdigit() else 32,
                               group_ranks=dict(self.group_ranks) if self.use_groups.get() else {},
                               filter=self.filter.get(), include=self.include.get().strip(), exclude=self.exclude.get().strip(),
@@ -914,23 +984,32 @@ class ExtractTab(ttk.Frame):
                               block_count=kept_block_count(getattr(self, "_block_count", None), self.target.get()))
 
     def to_recipe(self) -> dict:
-        return {"function": "extract", "base": self.base.get(), "target": self.target.get(),
-                "options": self.options().to_dict(), "output": self.out.get()}
+        return {"function": "extract_lokr" if self.is_lokr() else "extract", "base": self.base.get(),
+                "target": self.target.get(), "options": self.options().to_dict(), "output": self.out.get()}
 
     def from_recipe(self, r: dict):
         self.base.set(r.get("base"))
         self.target.set(r.get("target"))
-        o = ExtractOptions.from_dict(r.get("options"))
-        self._block_count = o.block_count
-        self.rank.set(str(o.rank))
-        self.group_ranks = dict(o.group_ranks)
-        self.use_groups.set(bool(o.group_ranks))
-        self.group_lbl.configure(text=_fmt_ranks(self.group_ranks))
+        lokr = r.get("function") == "extract_lokr"
+        self.mode.set("lokr" if lokr else "lora")
+        self._mode_changed()
+        if lokr:
+            o = LokrExtractOptions.from_dict(r.get("options"))
+            self.factor.set(str(o.factor))
+            self.template.set(o.template)
+            self._w1_scale = o.w1_scale
+        else:
+            o = ExtractOptions.from_dict(r.get("options"))
+            self._block_count = o.block_count
+            self.rank.set(str(o.rank))
+            self.group_ranks = dict(o.group_ranks)
+            self.use_groups.set(bool(o.group_ranks))
+            self.group_lbl.configure(text=_fmt_ranks(self.group_ranks))
+            self.method.set(o.method)
+            self.naming.set(o.naming)
         self.filter.set(o.filter)
         self.include.set(o.include)
         self.exclude.set(o.exclude)
-        self.method.set(o.method)
-        self.naming.set(o.naming)
         self.dtype.set(o.dtype)
         self.out.set(r.get("output"))
         self._filter_changed()
@@ -945,9 +1024,15 @@ class ExtractTab(ttk.Frame):
         if not self._check():
             return
         b, t, o = self.base.get(), self.target.get(), self.options()
+        gpu = self.app.use_gpu()          # read the Tk variable on the main thread, not in the worker
+        if self.is_lokr():
+            def job_lokr(progress, cancel, log):
+                from .extract_lokr import analyze_extract_lokr
+                return analyze_extract_lokr(b, t, o, gpu, progress=progress, cancel=cancel)
+            self.app.run_job("Analyzing LoKr extraction", job_lokr, lambda rep: self.app.log(rep.text()))
+            return
         target, crit, dn, null = float(self.target_e.get()), self.criterion.get(), bool(self.denoised.get()), bool(self.null_spec.get())
 
-        gpu = self.app.use_gpu()          # read the Tk variable on the main thread, not in the worker
         def job(progress, cancel, log):
             from .extract import analyze_extract
             rep = analyze_extract(b, t, o, gpu, progress=progress, cancel=cancel, null_spectrum=null)
@@ -969,6 +1054,9 @@ class ExtractTab(ttk.Frame):
         if not self._check():
             return
         b, t, o = self.base.get(), self.target.get(), self.options()
+        if self.is_lokr():
+            self.app.run_job("Planning", lambda p, c, l: __import__("k2merge.extract_lokr", fromlist=["plan_text"]).plan_text(b, t, o), self.app.log)
+            return
         self.app.run_job("Planning", lambda p, c, l: __import__("k2merge.plan", fromlist=["plan_extract"]).plan_extract(b, t, o), self.app.log)
 
     def run(self):
@@ -981,6 +1069,13 @@ class ExtractTab(ttk.Frame):
         b, t, o = self.base.get(), self.target.get(), self.options()
 
         gpu = self.app.use_gpu()          # read the Tk variable on the main thread, not in the worker
+        if self.is_lokr():
+            def job_lokr(progress, cancel, log):
+                from .extract_lokr import extract_lokr
+                return extract_lokr(b, t, out, o, gpu, progress, cancel, log)
+            self.app.run_job("Extracting LoKr", job_lokr, lambda res: self.app.log(res.summary()))
+            return
+
         def job(progress, cancel, log):
             from .extract import extract_lora
             return extract_lora(b, t, out, o, gpu, progress, cancel, log)
@@ -1162,6 +1257,7 @@ class CkptTab(ttk.Frame):
                       "naming": self.lora_naming.get(), "dtype": "fp16", "method": "randomized"}
         o.use_gpu = self.app.use_gpu()
         o.block_count = kept_block_count(getattr(self, "_block_count", None), self.A.get())
+        o.strict_loras = bool(getattr(self, "_strict_loras", False))   # recipe and CLI only, kept from a loaded recipe
         return o
 
     def inputs(self):
@@ -1189,6 +1285,7 @@ class CkptTab(ttk.Frame):
         self.lora_list.load([LoraInput.from_dict(d) for d in r.get("loras", [])])
         o = CkptMergeOptions.from_dict(r.get("options"))
         self._block_count = o.block_count
+        self._strict_loras = bool(o.strict_loras)
         if o.method in ADVANCED:
             self.advanced.set(True)
             self._refresh_methods()
@@ -1743,7 +1840,8 @@ class MergeApp(tk.Tk):
         for role, name, q in rows:
             self.log(f"  {role}: {name}" + (f" -> {q}" if q else "   NOT FOUND, fill this slot by hand"))
         r = resolve_recipe_paths(r, base, extra)   # stored recipes hold file names only
-        target = {"lora_merge": self.tab_lora, "extract": self.tab_extract, "ckpt_merge": self.tab_ckpt, "convert": self.tab_ckpt}[r["function"]]
+        target = {"lora_merge": self.tab_lora, "extract": self.tab_extract, "extract_lokr": self.tab_extract,
+                  "ckpt_merge": self.tab_ckpt, "convert": self.tab_ckpt}[r["function"]]
         if r["function"] == "lora_merge" and (r.get("options") or {}).get("rank_mode") == "dynamic":
             target = self.tab_prune          # a pruning recipe belongs on the Prune tab
         if r["function"] == "convert":

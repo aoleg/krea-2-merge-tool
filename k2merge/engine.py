@@ -200,7 +200,7 @@ def _plan_attention_config(plan: Plan, prefix: str) -> None:
 
 
 # ----------------------------------------------------------------------------- execution
-PATH_KEYS = ("file", "base", "target")   # recipe fields that hold a path
+PATH_KEYS = ("file", "base", "target", "template")   # recipe fields that hold a path (template: a LoKr template file)
 
 
 def recipe_for_metadata(recipe: dict | None) -> dict | None:

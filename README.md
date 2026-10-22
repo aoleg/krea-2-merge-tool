@@ -4,7 +4,7 @@ Merges, analyzes, extracts and converts Krea 2 and MOSS-Image diffusion models o
 
 - **LoRA merge**: several LoRA or LoKr files into one LoRA, exact when the inputs are ordinary LoRAs, with per LoRA strength and block shaping.
 - **Analysis**: the singular value spectrum of every weight delta, the rank needed and the energy retained per layer group, a noise edge from the storage formats, and a Spectrum tab that plots it all and compares two analyses.
-- **Extract**: a LoRA from the difference between two checkpoints in any storage format.
+- **Extract**: a LoRA, or a full rank LoKr at a chosen factor in ai-toolkit's layout, from the difference between two checkpoints in any storage format.
 - **Checkpoint merge and convert**: one to three checkpoints and up to four LoRAs, nine merge methods, output in fp16, bf16, fp32, fp8, fp8 scaled or int8 convrot in the exact layout of the official Krea 2 and MOSS-Image files, or the result written as a LoRA.
 - **Metadata**: what any file says about itself, with the author's folder paths taken out of it in place in milliseconds, a strip for publishing, an editor for the model spec fields, and the recipe of a merged file loaded back into the tab that made it.
 
@@ -34,8 +34,12 @@ The tool needs a Krea 2 or MOSS-Image diffusion model file. The text encoder and
 | int8 convrot (official Krea 2 and MOSS-Image layouts) | yes | yes |
 | int8 without rotation | yes | no |
 | LoRA: ComfyUI, kohya, musubi-tuner, diffusers, PEFT | yes | ComfyUI or kohya naming |
-| LoKr (ai-toolkit, full or decomposed factors) | yes | converted to a LoRA by SVD |
+| LoKr (ai-toolkit, LyCORIS, full or decomposed factors) | yes | extracted from two checkpoints as a full rank LoKr; a LoRA merge output is a LoRA, by SVD |
 | DoRA | refused | no |
+
+A LoKr baked into a checkpoint is applied exactly: its delta is the Kronecker product of its factors in fp32, with no SVD. Only the LoRA merge and the checkpoint merge's output as LoRA turn a LoKr into a LoRA, and that is lossy for a full rank LoKr.
+
+Nothing a LoRA or LoKr carries is dropped without a word. LyCORIS's own `lycoris_` names resolve like the others. A LoRA that matches no module of the checkpoint stops the merge, because the output would be the checkpoint unchanged. Tensors the parser does not recognize, such as trained norms, and modules that do not match are listed in the log; `--strict-loras` turns any of them into an error, which is the setting for a bake that a training run continues from.
 
 Quantized outputs reproduce the official files: converting the official bf16 file gives the official fp8 scaled file bit for bit, and the official int8 convrot file bit for bit with the default `auto` clip, which is the least squares (MSE) clip for Krea 2 and plain absmax scaling for MOSS-Image (`--int8-clip mse` or `absmax` forces one rule). The same 224 int8 layers with group size 256 and per row scales, the same 256 fp8 layers with scalar scales and the full precision flag on the output projections.
 
@@ -65,6 +69,20 @@ Timestep scheduling cannot be baked into a file and is not offered.
 ## Prune a LoRA
 
 The Prune LoRA tab makes a smaller file out of one LoRA. Every module keeps the smallest rank whose energy reaches a retention you type (0.500 to 1.000, three decimals), raised to a floor and cut at a cap, so a module whose change is simple gets a low rank and a module that needs its rank keeps it up to the cap. The input's strength and block shaping apply before the SVD, so a suppressed zone needs fewer components and a zeroed zone is dropped. Analyze runs the LoRA analysis once and shows the plan: for the whole file, per group and per block, the modules, their share of the change, the rank in and out, the retention actually achieved, the size before and after, and how many modules the cap held. Replan recomputes the table for new settings from the same spectra. The cap decides the size and the retention decides where the cap does not bind; on a trained rank-32 LoRA the cap binds on most modules once the retention passes about 0.99, so read the achieved figure, not the requested one. The output carries an ordinary LoRA merge recipe with the rule in it and reproduces byte for byte. Check a pruned LoRA against its source at fixed seeds and across seeds before publishing; the tool measures energy, not likeness.
+
+## Extract a LoKr
+
+The Extract tab extracts a LoRA or a LoKr. Choose LoKr in the "extract as" row and the LoRA rows (rank, SVD, naming, the rank planning row) give way to two: the factor and an optional template. Modules and dtype stay; each kind keeps its own value, and a switch back restores the other kind's settings.
+
+Every module's delta is fitted by the nearest Kronecker product kron(w1, w2) in the Frobenius norm. w1 is factor x factor, w2 is full rank (out / factor x in / factor), and the shapes follow LyCORIS's rule, which ai-toolkit uses, so a trainer that creates a LoKr at the same factor with full rank accepts the file as its starting point. The fit is exact where the delta is one Kronecker term; otherwise it keeps the largest share a single term can hold, and the report says how much that is.
+
+- **Captured share**: Analyze reports, per module, per group and per block zone, the share of the delta's energy the LoKr holds, and the share of the next terms an exact copy would need. Read it before training from the file. A factor 8 LoKr refitted at factor 4 is not a superset of itself: a real ai-toolkit factor 8 Krea 2 LoKr keeps 0.41 of its energy at factor 4, because its 8 x 8 w1 does not split into 4 x 4 and 2 x 2 parts.
+- **Template**: empty uses the built-in ai-toolkit Krea 2 layout, taken from the header of a real ai-toolkit LoKr: key names `diffusion_model.<module>.lokr_w1`, `lokr_w2` and `alpha`, the 256 modules it trains (the block linears and the text fusion linears), the full rank alpha marker, and the format metadata. A LoKr file your trainer wrote sets its own names, modules, alpha and metadata instead; at the same factor its shapes are checked against the rule. The run name fields take the output's file name; the template's hashes and training progress are not carried over, so a trainer starts the file at step 0. MOSS-Image has no built-in template and gets the generic layout.
+- **w1 and w2 sizes**: the product does not fix how its size splits between the factors. w1 gets the typical size of the trainer's random start, so the optimizer's steps behave as in a fresh run. `--w1-scale balanced` gives both factors the same norm; it is a recipe and CLI option without a GUI control.
+- **Modules with no change** are written as the trainer's own start: a random w1 and a zero w2, which apply nothing and still train.
+- **Memory**: one module at a time; the largest Krea 2 module needs about 1.6 GB, on the GPU or the CPU. The output for all 256 modules at factor 4 is 781 M parameters, 3.1 GB in fp32; measured on the CPU, one extraction adds about 1.7 GB of memory at its largest module.
+
+Each run verifies its output: the key set, sampled factors read back, the tool's own LoKr reader applying every module at scale 1, and the residual of the stored factors against one minus the captured share.
 
 ## Spectrum analysis
 
@@ -186,6 +204,14 @@ run.bat lora-merge "character.safetensors|1" -o character_pruned.safetensors --d
 ```
 
 ```bash
+run.bat ckpt-merge -A krea2_raw_bf16.safetensors --lora "style_lokr.safetensors|1" -o style_merged_fp32.safetensors --format fp32 --strict-loras
+```
+
+```bash
+run.bat extract krea2_raw_bf16.safetensors style_merged_fp32.safetensors -o style_lokr_f4.safetensors --lokr --factor 4 --analyze
+```
+
+```bash
 run.bat ckpt-merge -A base.safetensors -B "finetune.safetensors|1|STYLE:Isolate:1.0@0" -C krea2_turbo_bf16.safetensors -o style_only.safetensors --as-lora 32
 ```
 
@@ -214,6 +240,8 @@ run.bat meta redact S:\models\krea-2
 ```
 
 LoRA and checkpoint arguments take the form `FILE|WEIGHT|SHAPING`, where SHAPING is `PRESET:MODIFIER:CONTRAST[:BOOST][@NONBLOCK]`.
+
+`extract --lokr` takes `--factor` (2 to 32, default 4), `--template FILE` or `--template none`, `--w1-scale`, and the module filter and dtype of the LoRA extraction; its module filter defaults to `trainer`, the set ai-toolkit trains, and its dtype to fp32. The LoRA options `--rank`, `--method`, `--naming` and the rank planning flags are refused with `--lokr`.
 
 `--prefix-weight PREFIX=FACTOR` (checkpoint merge, repeatable) sets the factor on the second checkpoint's weight for every module whose name starts with PREFIX, in place of the block or non block factor; the longest matching prefix wins. It separates the parts of the non block zone, for example a de-Turbo of a fine tune whose `txtfusion.` and `txtmlp.` were copied from a Raw-side model and carry no Turbo delta. Recipes store it as `prefix_factors` in the shaping of B. The GUI has no control for it: a loaded recipe keeps it, and the preset hint names it.
 

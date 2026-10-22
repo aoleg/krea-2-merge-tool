@@ -1,0 +1,30 @@
+Phase 15 real runs, 2026-10-22, CPU only (CUDA hidden; the GPU was busy), Windows 11, Python 3.13, torch 2.13.0+cu132
+
+Inputs
+  base:     Krea 2 raw, bf16, 26.3 GB (430 tensors)
+  LoKr:     a real ai-toolkit 0.13.34 LoKr for Krea 2: factor 8, full rank w2, fp32, 256 modules (224 block + 32 txtfusion linears),
+            alpha 9999220736 in every module; its header (names emptied) is reference/aitoolkit_krea2_lokr.header.json
+  target:   a partial fp32 target built from the two: 13 modules (blocks 11-13 mlp gate/up/down, blocks.0.attn.wq/wk,
+            blocks.27.attn.gate, txtfusion.layerwise_blocks.0.attn.wq), each = base + kron(w1, w2); 3.99 GB, built in 6 s
+
+1. extract --lokr --factor 4 --plan, base against itself (headers only)
+   architecture Krea 2; template built-in ai-toolkit Krea 2 layout (256 modules, factor 8)
+   modules 256 (filter trainer), shapes by the LyCORIS rule, e.g. [6144, 6144] = [4, 4] x [1536, 1536],
+   [1536, 6144] = [4, 4] x [384, 1536], [16384, 6144] = [4, 4] x [4096, 1536], txtfusion [2560, 6912] = [4, 4] x [640, 1728]
+   output 781.2 M parameters, 3.1 GB in fp32
+
+2. extract --lokr --factor 4 (built-in template), base against the partial target
+   13 modules, 6.4 s; captured 0.421 energy weighted (modules 0.334 to 0.554); terms 1 to 4: 0.421, 0.279, 0.194, 0.106
+   verify: key set, 6 sampled modules read back byte equal, LoKr reader full rank at scale 1
+   residual of the stored factors vs 1 - captured: at most 9.99e-16
+   captured vs the closed form sigma_1^2 / sum sigma^2 of the 16 x 4 rearrangement of the LoKr's own w1: at most 1.81e-10 over 13 modules
+   key names identical to the real LoKr's for these modules; alpha identical; all F32; w1 [4, 4], w2 [4096, 1536] for mlp.gate
+   metadata: format, version, ss_base_model_version, software from the template; name and ss_output_name = the output's file name;
+   merge_tool, merge_recipe; no hashes, no training_info
+   243 template modules reported as not extracted (they are not in the partial target)
+
+3. Memory of the same extraction in a fresh process (GetProcessMemoryInfo)
+   after imports: peak commit 1.75 GB; after the extraction: peak commit 3.42 GB, peak working set 2.06 GB
+   the extraction adds about 1.7 GB of commit for the largest Krea 2 module (16384 x 6144)
+
+Whole model, from the plan and the per module timing: 256 modules, about 2 minutes of CPU fitting plus reading a 53 GB fp32 target.

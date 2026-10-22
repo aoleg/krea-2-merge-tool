@@ -62,6 +62,7 @@ class CkptMergeOptions:
     output_as_lora: bool = False
     lora_out: dict = field(default_factory=lambda: {"rank": 32, "naming": "comfy", "dtype": "fp16", "method": "randomized"})
     block_count: int | None = None    # None: from the checkpoint (Krea 2 28, MOSS-Image 42)
+    strict_loras: bool = False        # a LoRA tensor that does not land (unrecognized, unmatched, mismatched) stops the merge
     use_gpu: bool = True
 
     def to_dict(self):
@@ -150,22 +151,48 @@ def _open_context(A: CkptInput, B: CkptInput | None, C: CkptInput | None, loras:
                                     "use the same precision (bf16) for A and B")
 
     # LoRAs
+    try:
+        _open_loras(ctx, loras, opts)
+    except BaseException:
+        _close_context(ctx)
+        raise
+    return ctx
+
+
+def _open_loras(ctx: MergeContext, loras: list[LoraInput], opts: CkptMergeOptions):
+    """Resolves every LoRA against A. Nothing a LoRA carries is dropped without a word: a LoRA that matches no
+    module is an error (the merge would write A unchanged), tensors the parser does not recognize and modules
+    that do not match are warnings, and errors with strict_loras."""
+    a = ctx.A
     mods = checkpoint_modules(a.reader.infos)
     shapes = {k: v["shape"] for k, v in a.reader.infos.items()}
     for li in loras:
         lf = LoraFile(li.path)
-        res = resolve(lf, mods, shapes)
         src = LoraSource(lf, strength=li.strength, shaping=li.shaping, block_count=ctx.block_count,
                          label=os.path.basename(li.path))
+        ctx.loras.append(src)              # closed with the context, also when a check below fails
+        res = resolve(lf, mods, shapes)
         src.module_names = {cn: ckpt_module(k)[0] for cn, k in res.matched.items()}
+        if not res.matched:
+            raise FormatError(f"{src.label}: none of its {len(lf.modules)} module(s) matches {os.path.basename(a.path)} "
+                              f"(e.g. {(res.unmatched or [m for m, _s, _c in res.mismatched])[:2]}); the merge would "
+                              f"write the checkpoint unchanged. Is the LoRA for this architecture, and does inspect "
+                              f"recognize its key names?")
+        problems = []
+        if lf.unparsed:
+            problems.append(f"{src.label}: {len(lf.unparsed)} tensor(s) not recognized and not applied "
+                            f"(e.g. {lf.unparsed[:3]})")
         if res.unmatched:
-            ctx.warnings.append(f"{src.label}: {len(res.unmatched)} module(s) not matched (e.g. {res.unmatched[:2]})")
+            problems.append(f"{src.label}: {len(res.unmatched)} module(s) not matched (e.g. {res.unmatched[:2]})")
         if res.mismatched:
-            ctx.warnings.append(f"{src.label}: {len(res.mismatched)} module(s) with a shape mismatch, skipped")
+            problems.append(f"{src.label}: {len(res.mismatched)} module(s) with a shape mismatch, skipped "
+                            f"(e.g. {[m for m, _s, _c in res.mismatched][:2]})")
+        if problems and opts.strict_loras:
+            raise FormatError("strict LoRAs: " + "; ".join(problems) + ". Every tensor of a LoRA must land, "
+                              "or the merge stops.")
+        ctx.warnings.extend(problems)
         for cn, key in res.matched.items():
             ctx.lora_keys.setdefault(key, []).append((src, cn))
-        ctx.loras.append(src)
-    return ctx
 
 
 def _close_context(ctx: MergeContext):

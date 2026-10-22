@@ -18,6 +18,7 @@ LORA_PREFIXES = (
     "lora_te1_",
     "lora_te2_",
     "lora_te_",
+    "lycoris_",              # LyCORIS's own wrapper names: lycoris_blocks_0_attn_wq.lokr_w1
 )
 CKPT_PREFIXES = ("model.diffusion_model.", "diffusion_model.")
 
@@ -215,6 +216,11 @@ class ArchProfile:
         if self.int8_re.match(module):
             return True
         return self.family == "krea2" and include_txtfusion and bool(_RE_TXT_LINEAR.match(module))
+
+    def in_trainer(self, module: str) -> bool:
+        """The linears ai-toolkit trains by default. Krea 2: the 224 block linears and the 32 txtfusion linears
+        (256, the module set of a real ai-toolkit LoKr). MOSS-Image: the 168 layer projections, as in its LoRAs."""
+        return self.in_fp8(module, include_txtfusion=True)
 
     def fp8_full_precision_mm(self, module: str) -> bool:
         return self.family == "krea2" and bool(_RE_OUTPUT_PROJ.search(module))

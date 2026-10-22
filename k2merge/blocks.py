@@ -122,7 +122,13 @@ class Shaping:
             return pf
         if block is None:
             return 1.0 if self.non_block is None else float(self.non_block)
-        return self.factors(count)[block]
+        f = self.factors(count)
+        if not 0 <= block < len(f):
+            if self.custom is None and (self.preset == "FULL" or self.contrast <= 0.0):
+                return 1.0                     # no mask to look up: a flat shaping is 1 everywhere
+            raise ValueError(f"{module or 'a module'} names block {block}, the model has {count} blocks; "
+                             f"block shaping cannot place it")
+        return f[block]
 
     def is_flat(self) -> bool:
         return self.custom is None and (self.preset == "FULL" or self.contrast <= 0.0) \

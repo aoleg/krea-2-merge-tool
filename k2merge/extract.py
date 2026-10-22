@@ -24,7 +24,7 @@ from .meta import redact_paths
 from .sources import CheckpointDelta
 from .st_io import StreamWriter, TensorReader, same_file
 
-FILTER_PRESETS = ("all", "attn", "blocks", "custom")
+FILTER_PRESETS = ("all", "attn", "blocks", "trainer", "custom")
 
 
 @dataclass
@@ -63,6 +63,8 @@ def module_selected(module: str, opts: ExtractOptions, profile=None) -> bool:
         return bool(p.attn_leaf_re.match(module))
     if opts.filter == "blocks":
         return p.in_int8(module)
+    if opts.filter == "trainer":
+        return p.in_trainer(module)
     if opts.filter == "custom":
         if opts.exclude and re.search(opts.exclude, module):
             if not (opts.include and re.search(opts.include, module)):

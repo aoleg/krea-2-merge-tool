@@ -234,6 +234,12 @@ def _open_sources(inputs: list[LoraInput], average: bool) -> list[LoraSource]:
     return sources
 
 
+def unparsed_warnings(sources: list) -> list[str]:
+    """One line per input whose tensors the parser did not recognize: they are not part of the merge."""
+    return [f"{s.label}: {len(s.file.unparsed)} tensor(s) not recognized and not merged (e.g. {s.file.unparsed[:3]})"
+            for s in sources if s.file.unparsed]
+
+
 def select_modules(sources: list, mode: str) -> tuple[list, list]:
     sets = [s.modules() for s in sources]
     if mode == "union":
@@ -261,6 +267,7 @@ def analyze_lora_merge(inputs: list[LoraInput], opts: LoraMergeOptions, use_gpu=
         rep.noise_model = {"applied": False, "text": "no noise model: LoRA spectra are exact"}
         if dropped:
             rep.notes.append(f"{len(dropped)} module(s) not present in every input are dropped")
+        rep.notes.extend(unparsed_warnings(sources))
         return rep
     finally:
         for s in sources:
@@ -280,6 +287,8 @@ def merge_loras(inputs: list[LoraInput], out_path: str, opts: LoraMergeOptions, 
     sources = open_sources(inputs, opts.average, opts.block_count, opts.checkpoint)
     try:
         chosen, dropped = select_modules(sources, opts.modules)
+        for w in unparsed_warnings(sources):
+            log("warning: " + w)
         if not chosen:
             raise LoraFormatError("no modules in common between the inputs; are these the same architecture?")
         names = module_names(sources, opts.checkpoint)

@@ -3,6 +3,7 @@
 Schema (function decides the rest):
   {"function": "lora_merge", "inputs": [LoraInput...], "options": LoraMergeOptions, "output": path}
   {"function": "extract", "base": path, "target": path, "options": ExtractOptions, "output": path}
+  {"function": "extract_lokr", "base": path, "target": path, "options": LokrExtractOptions, "output": path}
   {"function": "ckpt_merge", "A": CkptInput, "B": CkptInput|null, "C": CkptInput|null,
    "loras": [LoraInput...], "options": CkptMergeOptions, "output": path}
   {"function": "convert", "inputs": [{"file": path}], "output_format": ..., "passthrough": ..., "output": path}
@@ -18,10 +19,11 @@ import os
 from .ckpt_merge import CkptInput, CkptMergeOptions, merge_checkpoints
 from .engine import PATH_KEYS, convert_checkpoint
 from .extract import ExtractOptions, extract_lora
+from .extract_lokr import LokrExtractOptions, extract_lokr
 from .lora_merge import LoraInput, LoraMergeOptions, merge_loras
 from .st_io import read_header
 
-FUNCTIONS = ("lora_merge", "extract", "ckpt_merge", "convert")
+FUNCTIONS = ("lora_merge", "extract", "extract_lokr", "ckpt_merge", "convert")
 
 
 def load_recipe(path: str) -> dict:
@@ -68,6 +70,11 @@ def recipe_inputs(r: dict) -> list[tuple[str, str]]:
         out = [(f"LoRA {i}", d.get("file")) for i, d in enumerate(r.get("inputs") or [], 1)]
     elif fn == "extract":
         out = [("base", r.get("base")), ("target", r.get("target"))]
+    elif fn == "extract_lokr":
+        out = [("base", r.get("base")), ("target", r.get("target"))]
+        t = str((r.get("options") or {}).get("template") or "")
+        if t and t.lower() != "none":
+            out.append(("template", t))
     elif fn == "ckpt_merge":
         out = [(role, (r.get(role) or {}).get("file")) for role in ("A", "B", "C") if r.get(role)]
         out += [(f"LoRA {i}", d.get("file")) for i, d in enumerate(r.get("loras") or [], 1)]
@@ -91,8 +98,8 @@ def validate(r: dict) -> None:
         raise ValueError(f"recipe: unknown function {fn!r}")
     if fn == "lora_merge" and not r.get("inputs"):
         raise ValueError("recipe: lora_merge needs inputs")
-    if fn == "extract" and not (r.get("base") and r.get("target")):
-        raise ValueError("recipe: extract needs base and target")
+    if fn in ("extract", "extract_lokr") and not (r.get("base") and r.get("target")):
+        raise ValueError(f"recipe: {fn} needs base and target")
     if fn == "ckpt_merge" and not r.get("A"):
         raise ValueError("recipe: ckpt_merge needs A")
     if fn == "convert" and not r.get("inputs"):
@@ -128,6 +135,12 @@ def run_recipe(r: dict, output: str | None = None, base_dir: str | None = None, 
     if fn == "extract":
         return extract_lora(_resolve(r["base"], base_dir), _resolve(r["target"], base_dir), out,
                             ExtractOptions.from_dict(r.get("options")), use_gpu, progress, cancel, log)
+    if fn == "extract_lokr":
+        o = LokrExtractOptions.from_dict(r.get("options"))
+        if o.template and o.template.lower() != "none":
+            o.template = _resolve(o.template, base_dir)
+        return extract_lokr(_resolve(r["base"], base_dir), _resolve(r["target"], base_dir), out, o,
+                            use_gpu, progress, cancel, log)
     if fn == "ckpt_merge":
         A = CkptInput.from_dict(r["A"])
         B = CkptInput.from_dict(r.get("B"))

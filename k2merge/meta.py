@@ -434,6 +434,8 @@ def _recipe_line(r: dict) -> str:
         return f"{len(r.get('inputs', []))} input(s), rank {o.get('rank_mode')}{'' if o.get('rank') is None else ' ' + str(o.get('rank'))}"
     if fn == "extract":
         return f"rank {o.get('rank')}, {o.get('filter')} modules"
+    if fn == "extract_lokr":
+        return f"LoKr factor {o.get('factor')}, {o.get('filter')} modules"
     if fn == "convert":
         return f"to {r.get('output_format')}"
     return ""
